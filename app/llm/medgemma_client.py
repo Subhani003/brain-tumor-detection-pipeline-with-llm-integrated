@@ -130,8 +130,12 @@ def _strip_thinking(text: str) -> str:
     """
     if not text:
         return text
-    # 1) Strip Gemma-internal tokens
-    cleaned = _re.sub(r'<unused\d+>|<eos>|<end_of_turn>', '', text)
+    # 1) Strip Gemma-internal tokens. Replace with a newline rather than ''—
+    # the model sometimes emits the real heading immediately after the token
+    # with no newline (e.g. "...Ready to generate.<unused95>## What we found"),
+    # and a bare removal would glue "## Heading" onto the end of the previous
+    # sentence, losing the start-of-line anchor the heading regex below relies on.
+    cleaned = _re.sub(r'<unused\d+>|<eos>|<end_of_turn>', '\n', text)
     cleaned = cleaned.strip()
 
     _PLAN_WORDS = ('thought', 'plan', 'drafting', 'let me', 'i will',
@@ -437,8 +441,10 @@ def _parse_assessment_json(raw: str) -> dict:
     if not raw:
         return {'raw_response': '', '_parse_status': 'failed'}
 
-    # 1) Token + preamble strip
-    cleaned = _re.sub(r'<unused\d+>|<eos>|<end_of_turn>', '', raw).strip()
+    # 1) Token + preamble strip. Newline (not '') so a heading glued directly
+    # to a stripped token still gets a start-of-line anchor if one is checked
+    # downstream — see the matching comment in _strip_thinking().
+    cleaned = _re.sub(r'<unused\d+>|<eos>|<end_of_turn>', '\n', raw).strip()
     cleaned = _re.sub(
         r'^(thought|plan|reasoning|pensamiento|razonamiento)\s*[:\n]+',
         '', cleaned, flags=_re.IGNORECASE,

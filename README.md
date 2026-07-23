@@ -1,6 +1,39 @@
-# Brain Tumor Detection — Proyecto v2 (clean)
+# Brain Tumor Detection Pipeline with LLM Integration
 
-Multimodal brain MRI classification system with explainability, uncertainty quantification, and an LLM-assisted diagnostic report. This is the clean, self-contained version of the project.
+Multimodal brain MRI classification system with explainability, uncertainty
+quantification, adversarial robustness testing, and an LLM-generated
+diagnostic report. Given a brain MRI slice, it returns not just a label but
+the reasoning behind it — model agreement, uncertainty, visual explanations,
+and a plain-language report from a medical vision-language model.
+
+> **Research / educational project.** Not a medical device. Not validated by
+> any regulatory authority. Not for clinical decision-making.
+
+---
+
+## Demo
+
+Don't want to run the whole stack? [`notebooks/demo.ipynb`](notebooks/demo.ipynb)
+walks through the full pipeline end-to-end on a real MRI — classification,
+uncertainty, explainability heat-maps, tumor segmentation, robustness testing,
+and a real MedGemma-generated report — with every output already captured, so
+it renders fully on GitHub with no setup required.
+
+## Results at a glance
+
+3-model ensemble evaluated on a locked, deduplicated test set of 2,114 MRI
+scans (never seen during training):
+
+| Model | Test accuracy | Balanced accuracy |
+|---|---:|---:|
+| ConvNeXt-Tiny | 99.29% | 99.25% |
+| EfficientNet-B3 | 99.48% | 99.48% |
+| ResNet-50 | 99.34% | 99.30% |
+| **Ensemble (soft-vote)** | **99.48%** | **99.48%** |
+
+Full per-class precision/recall/F1, confusion matrices, and latency numbers
+are in [`reports/`](reports/) — see `reports/v2_metrics.json` for the raw
+numbers used to regenerate the app's Metrics page.
 
 ---
 
@@ -10,14 +43,16 @@ Given a brain MRI image (axial T1), the pipeline returns:
 
 | Output | How it's produced |
 |---|---|
-| **Tumor type** — `glioma / meningioma / pituitary / no_tumor` | Ensemble of 3 CNNs (ConvNeXt-Tiny + EfficientNet-B3 + ResNet-50) trained on 9,867 images |
-| **Confidence + uncertainty** | MC Dropout + epistemic/aleatoric decomposition |
-| **OOD detection** | Energy-based score against the training distribution |
-| **Anomaly first-gate** | VQ-VAE reconstruction + autoregressive transformer NLL (optional toggle in the UI) |
-| **Tumor bounding box + size** | YOLO (Cheng) + MobileSAM segmentation + MedGemma VLM cross-validation |
+| **Tumor type** — `glioma / meningioma / pituitary / no_tumor` | Ensemble of 3 CNNs (ConvNeXt-Tiny + EfficientNet-B3 + ResNet-50), each with test-time augmentation |
+| **Confidence + uncertainty** | MC Dropout (20 stochastic passes) + epistemic/aleatoric decomposition |
+| **Out-of-distribution check** | Energy-based score against the training distribution |
+| **Focus-crop consistency check** | Re-classifies the model's own Grad-CAM++ attention region; disagreement flags unreliable reasoning |
+| **Visual explanations** | 4-level hierarchical XAI: Grad-CAM, Grad-CAM++, LayerCAM (block4), fused LayerCAM |
+| **Tumor bounding box + size** | YOLO (Cheng dataset) + MobileSAM segmentation, cross-validated against an independent MedGemma vision assessment |
+| **Adversarial robustness** | Re-classifies under blur / brightness / noise / scanner-artifact perturbation; flags fragile predictions |
 | **Malignancy score (0–10)** | Type-based clinical baseline × confidence × size-derived bonus |
 | **Anatomical localization** | Region label mapped to a 3D brain atlas |
-| **Diagnostic report** | MedGemma 1.5 4B Multimodal LLM via Ollama (basic / advanced modes, EN / ES) |
+| **Diagnostic report** | MedGemma 1.5 4B (via Ollama) — basic / advanced modes, EN / ES |
 | **Conversational Q&A** | Chat panel with patient/doctor audiences, scan-context-aware |
 
 ---
@@ -25,39 +60,35 @@ Given a brain MRI image (axial T1), the pipeline returns:
 ## 2. Folder layout
 
 ```
-Proyecto-Tumor-Clean/
+Tumor-detection/
 ├── README.md                      ← this file
+├── notebooks/
+│   └── demo.ipynb                 ← executed walkthrough of the full pipeline
 ├── app/                           ← runnable application
 │   ├── app.py                     ← Flask backend (HTTP server on :7860)
 │   ├── requirements.txt           ← Python dependencies
-│   ├── cheng_yolo.pt              ← YOLO weights for tumor bbox (5 MB)
-│   ├── mobile_sam.pt              ← MobileSAM segmentation (39 MB)
+│   ├── cheng_yolo.pt              ← YOLO weights for tumor bbox (not tracked in git — see below)
 │   ├── llm/                       ← MedGemma client + Ollama prompts
-│   ├── preprocessing/             ← brain extraction, CLAHE, denoising
-│   ├── vqvae/                     ← VQ-VAE anomaly detector
-│   ├── models/                    ← all trained weights (~615 MB)
-│   │   ├── v2/                    ← v2 CNN ensemble (ConvNeXt + EffNet + ResNet)
-│   │   ├── vqvae/                 ← VQ-VAE + LatentTransformer + thresholds
-│   │   ├── *_best.pth             ← v1 legacy models (loaded as fallback)
-│   │   ├── *.pkl / *.json         ← Nyul landmarks + OOD calibration
+│   ├── preprocessing/              ← brain extraction, CLAHE, denoising
+│   ├── models/                    ← trained weights (not tracked in git — see below)
+│   │   └── v2/                    ← CNN ensemble (ConvNeXt + EffNet + ResNet)
 │   ├── static/                    ← built React UI + 3D brain atlas GLBs
 │   ├── frontend/                  ← React source (npm run build → static/)
-│   ├── src/                       ← training + evaluation scripts
-│   │   ├── train_v2.py            ← train any of the 3 backbones
-│   │   ├── eval_v2.py             ← test-set metrics + confusion matrix
-│   │   ├── calibrate_medgemma.py  ← OOD threshold calibration
-│   │   ├── compare_voting.py      ← ensemble voting strategy ablation
-│   │   └── generate_methodology_doc.py
-│   └── make_preprocessing_preview.py
-├── dataset/                       ← BRISC2025 split (deduplicated, 70/15/15)
-│   ├── train/                     ← 9,867 images (4 classes)
-│   ├── val/                       ← 2,114 images
-│   └── test/                      ← 2,114 images
-└── docs/                          ← figures for the paper / presentation
-    ├── augmentation_overview_es.png
-    ├── augmentation_slide_es.pptx
-    └── augmentation_slide_es_editable.pptx
+│   └── src/                       ← training + evaluation scripts
+│       ├── train_v2.py            ← train any of the 3 backbones
+│       └── eval_v2.py             ← test-set metrics + confusion matrices
+├── dataset/                       ← combined, deduplicated split (not tracked in git)
+│   ├── train/  val/  test/
+├── docs/                          ← figures for the paper / presentation
+└── reports/                       ← evaluation metrics + confusion matrices (tracked)
 ```
+
+**Not tracked in git**: `dataset/` (~280 MB), `app/models/` (~430 MB — individual
+checkpoints exceed GitHub's 100 MB file limit), `app/frontend/node_modules/`,
+`app/.venv/`. These are excluded via `.gitignore` to keep the repo a browsable
+portfolio piece rather than an asset dump — see the demo notebook or
+`reports/` for pre-computed results, or the setup steps below to run it
+yourself with your own weights/dataset.
 
 ---
 
@@ -65,11 +96,11 @@ Proyecto-Tumor-Clean/
 
 | Component | Version | Why |
 |---|---|---|
-| **Python** | 3.11+ | Backend |
+| **Python** | 3.11 (torch's CPU wheel doesn't yet support 3.12+) | Backend |
 | **Node.js** | 18+ | Frontend (only if rebuilding UI) |
 | **Ollama** | latest | Serves MedGemma 1.5 4B locally |
-| **GPU** | NVIDIA, ≥ 8 GB VRAM | CNN ensemble + VQ-VAE + MedGemma |
-| **OS** | Windows 10 / 11, Linux | Tested on Win 11 with RTX 4060 Laptop |
+| **GPU** | Optional — NVIDIA recommended for training | Inference runs fine on CPU (`torch==2.2.0+cpu`); MedGemma calls are slower without a GPU (a few minutes per report on CPU vs. seconds on GPU) |
+| **OS** | Windows 10/11, Linux | Tested on both Windows 11 (CPU-only) and Linux + RTX GPU |
 
 ---
 
@@ -79,7 +110,7 @@ Proyecto-Tumor-Clean/
 
 ```powershell
 cd app
-py -m venv .venv
+py -3.11 -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
@@ -93,7 +124,13 @@ ollama pull medgemma1.5:4b
 
 To verify: `ollama list` should show `medgemma1.5:4b`.
 
-### 4.3 (Optional) Rebuild the frontend
+### 4.3 Provide model weights and dataset
+
+Not included in this repo (see §2). Either train your own (§6) or place
+existing checkpoints at `app/models/v2/{convnext_tiny,efficientnet_b3,resnet50}.pth`
+and a MobileSAM/YOLO checkpoint at `app/models/mobile_sam.pt` / `app/cheng_yolo.pt`.
+
+### 4.4 (Optional) Rebuild the frontend
 
 The `static/` folder already contains the built UI. Only rebuild if you modify React source:
 
@@ -131,15 +168,16 @@ Open **http://127.0.0.1:7860** in a browser.
 ### Using the UI
 
 1. Drag-and-drop or click to upload an MRI image (PNG / JPG)
-2. Optional: toggle the **VQ-VAE first-gate** switch above the Analyze button (simulates an anomaly detection stage before the CNN ensemble)
-3. Click **Analyze MRI**
-4. Results panel shows:
-   - Tumor type + confidence
-   - Malignancy assessment with bbox + size
+2. Click **Analyze MRI**
+3. Results panel shows:
+   - Tumor type + confidence, per-model agreement
    - Uncertainty / OOD / Focus-Crop self-check
+   - Malignancy assessment with bbox + size (pipeline estimate + independent MedGemma estimate)
+   - Hierarchical Grad-CAM/LayerCAM visual explanations
+   - Adversarial robustness score
    - MedGemma diagnostic report (Basic / Advanced toggle, EN / ES)
    - Brain atlas region link
-5. **Floating chat (bottom-right)** — ask follow-up questions to MedGemma about the scan; switches between Patient and Doctor audience
+4. **Floating chat (bottom-right)** — ask follow-up questions to MedGemma about the scan; switches between Patient and Doctor audience
 
 ### Language
 
@@ -164,13 +202,14 @@ This reads from `../dataset/train` and `../dataset/val`, applies the augmentatio
 py src\eval_v2.py
 ```
 
-Prints test-set accuracy, per-class precision/recall/F1, and writes a confusion matrix to `reports/`.
+Prints test-set accuracy, per-class precision/recall/F1, and writes a confusion matrix + `reports/v2_metrics.json` (the exact numbers the app's Metrics page reads).
 
 ---
 
 ## 7. Dataset
 
-Source: **BRISC2025** brain MRI tumor classification dataset (4 classes, T1-weighted axial slices).
+Combined from three publicly available brain MRI datasets, MD5-deduplicated
+against each other (4 classes, T1-weighted axial slices):
 
 | Split | Count |
 |---|---:|
@@ -205,18 +244,18 @@ Augmentation generates ≈ 380,866 augmented views during 40-epoch training. See
                                         │
                   ┌─────────────────────┼─────────────────────┐
                   ▼                     ▼                     ▼
-           VQ-VAE gate          CNN ensemble (×3)       YOLO + MobileSAM
-        (optional toggle)    ConvNeXt + EffNet + ResN  (tumor bbox + mask)
+           CNN ensemble (×3)     Hierarchical XAI       YOLO + MobileSAM
+         ConvNeXt + EffNet+ResN  Grad-CAM → LayerCAM     (tumor bbox + mask)
                   │                     │                     │
                   ▼                     ▼                     ▼
-             Anomaly level       MC Dropout                Bounding box
-             (LOW / MED / HI)    + epistemic σ             + size %
-                                + OOD energy score
+            MC Dropout            Focus-crop            Bounding box
+          + epistemic σ          consistency check       + size %
+          + OOD energy score     + robustness test
                                         │
                                         ▼
                               ┌─── MedGemma 1.5 4B ───┐
-                              │  Tumor assessment      │
-                              │  Diagnostic report     │
+                              │  Vision cross-check    │
+                              │  Diagnostic report      │
                               │  Conversational Q&A    │
                               └────────────┬───────────┘
                                            │
@@ -232,18 +271,18 @@ Augmentation generates ≈ 380,866 augmented views during 40-epoch training. See
 | Symptom | Fix |
 |---|---|
 | `Could not reach Ollama at http://127.0.0.1:11434` | Run `ollama serve` in another terminal, or check Ollama is installed |
-| `Empty reply from MedGemma` / strange text in chat | MedGemma 1.5 sometimes emits chain-of-thought. The backend has a `_strip_chat_thinking` and `_parse_assessment_json` filter — restart Flask if you updated the code |
+| MedGemma report/assessment fails or times out | MedGemma 1.5 sometimes emits chain-of-thought instead of the requested format, especially on CPU. `llm/medgemma_client.py` has `_strip_thinking` (reports) and `_parse_assessment_json` (tumor size/location) to recover from this; click **Regenerate** to retry |
+| MedGemma calls are very slow (minutes) | Expected on CPU-only inference — a 4B vision-language model has no GPU acceleration here. Budget a few minutes per report/assessment; timeouts are set generously (300–420s) to accommodate this |
 | `CUDA out of memory` | Lower `--batch` (try 16 or 8); close other GPU apps |
-| Port 7860 already in use | Kill the old process: `Get-NetTCPConnection -LocalPort 7860 | Stop-Process -Id $_.OwningProcess -Force` |
+| Port 7860 already in use | Kill the old process: `Get-NetTCPConnection -LocalPort 7860 \| Stop-Process -Id $_.OwningProcess -Force` |
 | Frontend shows old version | Hard-refresh with `Ctrl + Shift + R` or clear cache |
-| "no estimate" in MedGemma size card | MedGemma returned non-JSON text; check Flask console for `[MedGemma assess] parse status=...` — `regex` or `failed` indicate model is misbehaving on that image |
+| "no estimate" in MedGemma size card | MedGemma returned non-JSON text; check the Flask console for `[MedGemma assess] parse status=...` — `regex` means some fields were recovered, `failed` means none were |
 
 ---
 
 ## 10. Citation / credits
 
 - **CNN backbones**: ConvNeXt-Tiny, EfficientNet-B3, ResNet-50 (ImageNet pretrained, fine-tuned)
-- **VQ-VAE**: custom implementation in `app/vqvae/vqvae_model.py`
 - **MobileSAM**: Faster Segment Anything (https://github.com/ChaoningZhang/MobileSAM)
 - **YOLO**: Ultralytics — Cheng dataset weights for tumor bbox
 - **MedGemma 1.5 4B**: Google, January 2026 — medical VLM via Ollama
