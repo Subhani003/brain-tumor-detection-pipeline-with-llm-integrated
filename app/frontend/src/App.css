@@ -1,0 +1,196 @@
+.App {
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+    background: transparent;
+    color: white;
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.15) !important;
+    backdrop-filter: blur(25px) saturate(180%);
+    -webkit-backdrop-filter: blur(25px) saturate(180%);
+    border-radius: 20px !important;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15) !important;
+}
+
+.glass-card * {
+    color: white !important;
+}
+
+.modern-header * {
+    color: white !important;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.upload-zone {
+    transition: all 0.3s ease;
+    border: 3px dashed rgba(255, 255, 255, 0.5) !important;
+    border-radius: 20px !important;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    cursor: pointer;
+}
+
+.upload-zone:hover {
+    border-color: rgba(255, 255, 255, 0.8) !important;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.2);
+}
+
+.upload-zone.active {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.image-preview {
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    transition: transform 0.3s ease;
+}
+
+.image-preview:hover {
+    transform: scale(1.02);
+}
+
+.modern-button {
+    border-radius: 12px !important;
+    text-transform: none !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    padding: 14px 28px !important;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4) !important;
+    transition: all 0.3s ease !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+.modern-button:hover {
+    box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5) !important;
+    transform: translateY(-2px);
+}
+
+.result-card {
+    animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.prediction-chip {
+    font-size: 1.1rem !important;
+    padding: 8px 20px !important;
+    font-weight: 700 !important;
+    border-radius: 12px !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+}
+
+.confidence-chip {
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    padding: 6px 16px !important;
+    border-radius: 10px !important;
+}
+
+.confidence-high {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3) !important;
+}
+
+.confidence-medium {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3) !important;
+}
+
+.confidence-low {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%) !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(250, 112, 154, 0.3) !important;
+}
+
+.xai-card {
+    border-radius: 16px !important;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15) !important;
+    transition: transform 0.3s ease !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.xai-card * {
+    color: white !important;
+}
+
+.xai-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(31, 38, 135, 0.25) !important;
+}
+
+.info-card {
+    background: rgba(255, 255, 255, 0.15) !important;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-radius: 20px !important;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15) !important;
+}
+
+.info-card * {
+    color: white !important;
+}
+
+.modern-footer {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    color: white;
+}
+
+.modern-footer * {
+    color: white !important;
+}
+
+.loading-spinner {
+    color: #667eea !important;
+}
+
+.MuiAlert-root {
+    border-radius: 12px !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+::-webkit-scrollbar {
+    width: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}

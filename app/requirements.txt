@@ -1,0 +1,12 @@
+torch==2.2.0+cpu
+torchvision==0.17.0+cpu
+--extra-index-url https://download.pytorch.org/whl/cpu
+flask==3.0.0
+flask-cors==4.0.0
+Pillow==10.2.0
+numpy==1.26.4
+scipy==1.12.0
+opencv-python-headless==4.9.0.80
+# MobileSAM for tumor segmentation (CAM bbox -> pixel-tight mask).
+# ultralytics auto-downloads mobile_sam.pt (~38 MB) on first inference.
+ultralytics>=8.3.0

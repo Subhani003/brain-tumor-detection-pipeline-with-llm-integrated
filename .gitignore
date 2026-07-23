@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Node / React
+node_modules/
+**/frontend/build/
+npm-debug.log*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime
+flask.log
+*.log
+.metrics_cache.json
+
+# Generated reports
+reports/figures/*.png
+reports/figures/*.pptx
+
+# Large binary assets — not suitable for a portfolio repo.
+# Model weights individually exceed GitHub's 100MB hard limit.
+dataset/
+app/models/
+app/cheng_yolo.pt
+app/mobile_sam.pt
+app/static/samples/
+app/static/models/
+app/static/static/
+app/.metrics_cache.json
