@@ -22,6 +22,10 @@ metrics, the 3D brain atlas, and a real MedGemma-generated report — with
 every output already captured, so it renders fully on GitHub with no setup
 required.
 
+For the full write-up — motivation, related work, methodology, and detailed
+results — see [`paper/brAIn_paper_en.pdf`](paper/brAIn_paper_en.pdf), an
+English translation of the project's original report.
+
 ## Results at a glance
 
 3-model ensemble evaluated on a locked, deduplicated test set of 2,114 MRI
@@ -123,6 +127,8 @@ Given a brain MRI image (axial T1), the pipeline returns:
 ```
 Tumor-detection/
 ├── README.md                      ← this file
+├── paper/
+│   └── brAIn_paper_en.pdf         ← full write-up (English translation of the original report)
 ├── notebooks/
 │   └── demo.ipynb                 ← executed walkthrough of the full pipeline
 ├── app/                           ← runnable application
