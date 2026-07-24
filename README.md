@@ -43,6 +43,13 @@ Full per-class precision/recall/F1, confusion matrices, and latency numbers
 are in [`reports/`](reports/) — see `reports/v2_metrics.json` for the raw
 numbers used to regenerate the app's Metrics page.
 
+Both captured live from the running app's Metrics tab — not mocked, not
+recomputed for this README:
+
+![Model overview and ensemble agreement, live from the app](notebooks/assets/metrics/03_live_overview.png)
+
+![Per-model and ensemble confusion matrices, live from the app](notebooks/assets/metrics/04_live_confusion.png)
+
 ---
 
 ## 1. Motivation
@@ -133,7 +140,6 @@ Tumor-detection/
 │       └── eval_v2.py             ← test-set metrics + confusion matrices
 ├── dataset/                       ← combined, deduplicated split (not tracked in git)
 │   ├── train/  val/  test/
-├── docs/                          ← figures for the paper / presentation
 └── reports/                       ← evaluation metrics + confusion matrices (tracked)
 ```
 
