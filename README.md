@@ -127,6 +127,8 @@ Given a brain MRI image (axial T1), the pipeline returns:
 ```
 Tumor-detection/
 ├── README.md                      ← this file
+├── assets/
+│   └── pipeline-{light,dark}.svg  ← the pipeline flowchart in §9
 ├── paper/
 │   └── brAIn_paper_en.pdf         ← full write-up (English translation of the original report)
 ├── notebooks/
@@ -325,38 +327,40 @@ YOLO11n tumor-localization detector.
 
 ---
 
-## 9. Architecture summary
+## 9. Architecture & pipeline
 
-```
-                              MRI input (PNG / JPG)
-                                       │
-                                       ▼
-                       ┌──────── Preprocessing ────────┐
-                       │  Brain extraction · CLAHE     │
-                       │  Sequence detector (T1 vs T2) │
-                       └────────────────┬──────────────┘
-                                        │
-                  ┌─────────────────────┼─────────────────────┐
-                  ▼                     ▼                     ▼
-           CNN ensemble (×3)     Hierarchical XAI       YOLO11n + MobileSAM
-         ConvNeXt + EffNet+ResN  Grad-CAM → LayerCAM     (tumor bbox + mask)
-                  │                     │                     │
-                  ▼                     ▼                     ▼
-            MC Dropout            Focus-crop            Bounding box
-          + epistemic σ          consistency check       + size %
-          + OOD energy score     + robustness test
-                                        │
-                                        ▼
-                              ┌─── MedGemma 1.5 4B ───┐
-                              │  Vision cross-check    │
-                              │  Diagnostic report      │
-                              │  Conversational Q&A    │
-                              └────────────┬───────────┘
-                                           │
-                                           ▼
-                                   React UI (Material-UI)
-                                   + 3D Brain Atlas (Three.js)
-```
+Every stage a scan passes through, from the upload panel to the generated
+report. This is the real call order in [`app/app.py`](app/app.py) — nine
+stages, three CNNs, two segmentation models, one vision-language model, and
+40 forward passes per scan.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/pipeline-dark.svg">
+  <img src="assets/pipeline-light.svg" alt="Pipeline flowchart: an uploaded MRI is preprocessed, expanded into five test-time augmentations, and classified by three CNNs in parallel. The best model feeds explainability, uncertainty, robustness and out-of-distribution checks; the Grad-CAM++ output seeds a YOLO11n and MobileSAM localization chain that produces a malignancy score, which is then cross-checked by a focus crop and by MedGemma before the response is assembled. Five independent checks feed a shared needs_review flag.">
+</picture>
+
+**Reading it** — teal = neural inference · amber = verification gate · violet =
+language model · grey = I/O and scoring. The dashed line is the un-normalized
+original image, which YOLO, SAM, the colormap views and MedGemma all consume
+directly rather than working from the normalized tensor.
+
+The amber rail down the right is the part worth noticing: five independent
+checks — model disagreement, MC-Dropout spread, robustness collapse,
+energy-based OOD, and the focus-crop re-check — all write to the same
+`needs_review` flag. Any one of them alone turns the verdict banner amber, so
+a confident-looking softmax score never reaches the user unchallenged.
+
+Two design decisions the diagram makes visible:
+
+- **The supervised detector leads, the heat-map follows.** Grad-CAM++ shows
+  what the classifier *looked at*, which is frequently not the lesion itself.
+  YOLO11n draws the box, MobileSAM tightens it to pixels, and the CAM is
+  demoted to a fallback seed.
+- **Size is measured three ways and ranked, not averaged.** YOLO pixel area
+  wins when it fires; otherwise a MedGemma-seeded SAM re-segmentation; only
+  if both fail does MedGemma's free-text estimate count. Both estimates stay
+  visible in the UI so a disagreement is obvious rather than silently
+  resolved.
 
 The backend is a single Flask process that loads every model into memory
 once at startup (avoiding repeated cold-starts on each request) and exposes
@@ -436,6 +440,14 @@ to get to:
 - **Single VLM.** MedGemma 1.5 4B hasn't been benchmarked against
   alternatives (e.g. Qwen3-VL) for report quality, stability, or
   clarity.
+- **OOD thresholds are stale.** `models/tumor_ood_calibration.json` is keyed
+  for the v1 checkpoints (`densenet169`, `efficientnetb3`, `resnet50`), but
+  the deployed v2 ensemble uses `convnext_tiny` and `efficientnet_b3` —
+  neither has an entry, so the energy-based OOD check is skipped whenever one
+  of them is the best model. Only `resnet50` matches by name, and it inherits
+  a threshold calibrated on different weights. Recalibrating against the v2
+  validation split is the fix; until then the other four review flags carry
+  that responsibility.
 - **Local-only, single-user.** Current deployment has no encryption,
   access control, or auto-deletion policy — fine for a local research tool,
   not for handling real patient data. Any real deployment would need to
