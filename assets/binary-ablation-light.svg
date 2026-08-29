@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400" role="img" aria-label="Line chart of the four binary-model steps. Accuracy rises gently from 97.5 percent at step A to 99.3 percent at step D, while the false-negative rate falls steeply from 2.7 percent to 0.3 percent. Step C, the image-processing step, is highlighted: accuracy gains only 0.3 points there while the false-negative rate drops from 2.2 to 1.4 percent.">
+<style>
+  .ttl{font-family:'Segoe UI',Roboto,system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;font-weight:700;font-size:14px;fill:#101519}
+  .ax{font-family:'DejaVu Sans Mono',Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:11.5px;fill:#7E8A95}
+  .xl{font-family:'Segoe UI',Roboto,system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;font-weight:700;font-size:14px;fill:#101519;text-anchor:middle}
+  .xs{font-family:'DejaVu Sans Mono',Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:11px;fill:#7E8A95;text-anchor:middle}
+  .vl{font-family:'DejaVu Sans Mono',Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:12px;font-weight:500;text-anchor:middle}
+  .lg{font-family:'Segoe UI',Roboto,system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;font-size:13px;fill:#4B5763}
+  .note{font-family:'Segoe UI',Roboto,system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;font-style:italic;font-size:12px;fill:#7E8A95;text-anchor:middle}
+</style>
+<rect x="0" y="0" width="900" height="400" fill="#ffffff"/>
+<rect x="455" y="60" width="172" height="240" fill="#8A6410" opacity="0.08"/>
+<text class="note" x="541" y="50" fill="#8A6410">image processing</text>
+<line x1="110" y1="300" x2="800" y2="300" stroke="#E3E8EC" stroke-width="1"/>
+<text class="ax" x="96" y="304" text-anchor="end">97%</text>
+<text class="ax" x="814" y="304">0%</text>
+<line x1="110" y1="220" x2="800" y2="220" stroke="#E3E8EC" stroke-width="1"/>
+<text class="ax" x="96" y="224" text-anchor="end">98%</text>
+<text class="ax" x="814" y="224">1%</text>
+<line x1="110" y1="140" x2="800" y2="140" stroke="#E3E8EC" stroke-width="1"/>
+<text class="ax" x="96" y="144" text-anchor="end">99%</text>
+<text class="ax" x="814" y="144">2%</text>
+<line x1="110" y1="60" x2="800" y2="60" stroke="#E3E8EC" stroke-width="1"/>
+<text class="ax" x="96" y="64" text-anchor="end">100%</text>
+<text class="ax" x="814" y="64">3%</text>
+<line x1="110" y1="60" x2="110" y2="300" stroke="#C6CFD6" stroke-width="1.2"/>
+<line x1="110" y1="300" x2="800" y2="300" stroke="#C6CFD6" stroke-width="1.2"/>
+<polyline points="196,84.0 369,124.0 541,188.0 714,276.0" fill="none" stroke="#8A6410" stroke-width="2.4"/>
+<polyline points="196,260.0 369,180.0 541,156.0 714,116.0" fill="none" stroke="#0C7079" stroke-width="2.4"/>
+<circle cx="196" cy="260.0" r="4.5" fill="#ffffff" stroke="#0C7079" stroke-width="2.4"/>
+<circle cx="196" cy="84.0" r="4.5" fill="#ffffff" stroke="#8A6410" stroke-width="2.4"/>
+<text class="vl" x="196" y="247.0" fill="#0C7079">97.5%</text>
+<text class="vl" x="196" y="104.0" fill="#8A6410">2.7%</text>
+<text class="xl" x="196" y="330">A</text>
+<text class="xs" x="196" y="350">baseline</text>
+<text class="xs" x="196" y="366">frozen backbone</text>
+<circle cx="369" cy="180.0" r="4.5" fill="#ffffff" stroke="#0C7079" stroke-width="2.4"/>
+<circle cx="369" cy="124.0" r="4.5" fill="#ffffff" stroke="#8A6410" stroke-width="2.4"/>
+<text class="vl" x="369" y="167.0" fill="#0C7079">98.5%</text>
+<text class="vl" x="369" y="144.0" fill="#8A6410">2.2%</text>
+<text class="xl" x="369" y="330">B</text>
+<text class="xs" x="369" y="350">+ data</text>
+<text class="xs" x="369" y="366">augmentation</text>
+<circle cx="541" cy="156.0" r="4.5" fill="#ffffff" stroke="#0C7079" stroke-width="2.4"/>
+<circle cx="541" cy="188.0" r="4.5" fill="#ffffff" stroke="#8A6410" stroke-width="2.4"/>
+<text class="vl" x="541" y="143.0" fill="#0C7079">98.8%</text>
+<text class="vl" x="541" y="208.0" fill="#8A6410">1.4%</text>
+<text class="xl" x="541" y="330">C</text>
+<text class="xs" x="541" y="350">+ CLAHE</text>
+<text class="xs" x="541" y="366">+ denoising</text>
+<circle cx="714" cy="116.0" r="4.5" fill="#ffffff" stroke="#0C7079" stroke-width="2.4"/>
+<circle cx="714" cy="276.0" r="4.5" fill="#ffffff" stroke="#8A6410" stroke-width="2.4"/>
+<text class="vl" x="714" y="103.0" fill="#0C7079">99.3%</text>
+<text class="vl" x="714" y="296.0" fill="#8A6410">0.3%</text>
+<text class="xl" x="714" y="330">D</text>
+<text class="xs" x="714" y="350">+ fine-tune, TTA</text>
+<text class="xs" x="714" y="366">+ threshold</text>
+<line x1="110" y1="22" x2="140" y2="22" stroke="#0C7079" stroke-width="2.4"/>
+<circle cx="125" cy="22" r="4.5" fill="#ffffff" stroke="#0C7079" stroke-width="2.4"/>
+<text class="lg" x="148" y="26">Accuracy — left axis</text>
+<line x1="330" y1="22" x2="360" y2="22" stroke="#8A6410" stroke-width="2.4"/>
+<circle cx="345" cy="22" r="4.5" fill="#ffffff" stroke="#8A6410" stroke-width="2.4"/>
+<text class="lg" x="368" y="26">Missed tumors (FNR) — right axis</text>
+</svg>

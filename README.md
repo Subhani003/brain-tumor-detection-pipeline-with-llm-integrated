@@ -56,49 +56,128 @@ recomputed for this README:
 
 ---
 
-## 1. Motivation
+## 1. Why this project exists
 
-MRI is the primary imaging tool for brain tumor assessment, but reading it
-takes specialized expertise, and interpretation can be affected by case
-complexity, image quality, or visual similarity between certain lesion
-types. A prior version of this project addressed a narrower question — a
-binary ResNet-50 classifier distinguishing "tumor" from "no tumor,"
-reaching ~99.3% accuracy — but a binary label alone isn't enough as a
-diagnostic-support tool: knowing whether a tumor is *present* matters far
-less in practice than knowing what *type* it likely is, roughly *where* it
-sits, how *confident* the model actually is, and *which part of the image*
-drove that answer. This project exists to close that gap: extend a binary
-detector into a multiclass system that's also interpretable, uncertainty-aware,
-and reviewable — a support tool for a specialist, not a replacement for one.
+### The problem
 
-### Objectives
+Brain tumors are among the most serious neurological illnesses there are. A
+glioblastoma — the most aggressive kind of glioma — has a median survival of
+about **15 months** even when treatment goes as well as it possibly can. (A
+median of 15 months means half of patients live longer than that, half
+shorter.)
 
-- Extend the binary tumor/no-tumor classifier into 4-class classification: glioma, meningioma, pituitary tumor, no tumor
-- Train and compare three CNN backbones (ConvNeXt-Tiny, EfficientNet-B3, ResNet-50) rather than committing to one architecture upfront
-- Quantify per-model uncertainty (MC Dropout) as an orientative reliability signal, not just a confidence number
-- Detect out-of-distribution inputs — scans that don't statistically resemble the training distribution
-- Make the decision visually explainable (Grad-CAM, Grad-CAM++, LayerCAM) rather than a black-box label
-- Localize the tumor with a supervised detector (YOLO11n) instead of relying solely on classifier attention maps
-- Build an interactive web interface for reviewing predictions, heat-maps, and bounding boxes — including manual correction
-- Generate clinically-structured narrative text via a locally-hosted LLM
-- Document the system's real limitations and a concrete path toward more rigorous validation
+But spotting a tumor is only half the question. The *type* decides what
+happens next, and the answers are very different:
 
-### Related work
+- A **grade I meningioma** is often just monitored, or removed in planned, non-urgent surgery.
+- A **high-grade glioma** needs urgent treatment combining surgery, radiotherapy and chemotherapy.
 
-The BraTS challenge (running since 2012) is the closest thing this field has
-to a standardized benchmark for brain-tumor segmentation methods; its 2025
-edition covers gliomas, meningiomas, metastases, and pre/post-treatment
-scenarios. In the Spanish clinical research space, **DISCERN**
-(Vall d'Hebron / VHIO / IDIBELL) differentiates three malignant brain tumor
-types non-invasively from MRI at ~78% accuracy — a useful reference point
-for how hard multiclass differentiation from imaging alone actually is. A
-UPM/CIBER-BBN team (with Children's National Hospital, Washington) placed
-first in a recent Brain Tumor Segmentation Challenge focused specifically on
-glioma detection and segmentation. The broader trend across the field is a
-shift from pure prediction toward *interpretable*, review-friendly systems
-— regulatory bodies including the FDA are explicit that safety, efficacy,
-and transparency all have to be demonstrated before clinical integration,
-not just raw accuracy.
+Same scan, same "yes, there's a tumor" — completely different next step for
+the patient.
+
+MRI is the standard first scan for this. Reading one properly takes a trained
+radiologist, and that expertise is not available everywhere, especially
+outside large hospitals. This tool is not meant to replace that reading. It is
+meant to give a second opinion, help sort the urgent cases first, and explain
+to a patient in plain words what their scan appears to show.
+
+### Where it started: the yes/no version
+
+This project grew out of an earlier one that answered a much simpler question:
+**is there a tumor, yes or no?** That version used a single ResNet-50 and was
+built up in four steps. These are the numbers from its training log:
+
+| Step | What was added | Accuracy | Missed tumors (FNR) |
+|---|---|---:|---:|
+| **A** | Baseline, frozen backbone | 97.5% | 2.7% |
+| **B** | + data augmentation | 98.5% | 2.2% |
+| **C** | **+ CLAHE + denoising** *(image processing)* | 98.8% | **1.4%** |
+| **D** | + fine-tuning + TTA + adjusted threshold | **99.3%** | **0.3%** |
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/binary-ablation-dark.svg">
+  <img src="assets/binary-ablation-light.svg" alt="Line chart of the four binary-model steps. Accuracy rises gently from 97.5 percent at step A to 99.3 percent at step D, while the false-negative rate falls steeply from 2.7 percent to 0.3 percent. Step C, the image-processing step, is highlighted: accuracy gains only 0.3 points there while the false-negative rate drops from 2.2 to 1.4 percent.">
+</picture>
+
+Two things are worth pulling out of that:
+
+- **Accuracy barely moved, but the misses collapsed.** Accuracy rose 1.8
+  points in total (97.5% → 99.3%). Meanwhile the false-negative rate — the
+  share of real tumors the model waved through as healthy — fell **nine-fold**,
+  from 2.7% to 0.3%. In medical imaging that second number is the one that
+  counts. A false alarm costs a follow-up scan; a missed tumor can cost a life.
+- **Image processing did a large share of that work.** Step C added only 0.3
+  points of accuracy, which looks like a rounding error — but it cut the miss
+  rate by **more than a third** (2.2% → 1.4%). CLAHE evens out local contrast
+  so a faint lesion stands out from the tissue around it, and denoising stops
+  the model chasing scanner grain. Judged on accuracy alone, that step would
+  have looked like it barely mattered.
+
+That result is why CLAHE is still applied to **every** scan in the current
+system rather than only to images that look low-contrast — see the Preprocess
+stage in [§9](#9-architecture--pipeline).
+
+> These binary figures come from a different, smaller dataset than the one
+> used here, so they are not directly comparable to the 99.48% multiclass
+> accuracy reported below. They are included to show how the approach
+> developed, not as a like-for-like benchmark.
+
+### Why "yes or no" wasn't enough
+
+99.3% on a yes/no question sounds close to solved. But by the time a brain MRI
+is ordered, somebody already suspects a problem — so "yes, there's a tumor" is
+rarely the useful part. What actually helps next is:
+
+1. **Which type** of tumor is it likely to be?
+2. **Where** is it, and **how big**?
+3. **How sure** is the model really — not just what confidence number did it print?
+4. **Why** did it decide that — what part of the image was it looking at?
+
+The yes/no model answers none of those. So this project restarted in a clean
+codebase — the earlier one is kept intact as a reference — and was rebuilt
+around four classes (glioma, meningioma, pituitary tumor, no tumor), adding
+one piece per unanswered question:
+
+| Missing before | Added here |
+|---|---|
+| Which type? | Three CNNs (ConvNeXt-Tiny, EfficientNet-B3, ResNet-50) voting together, instead of betting on one architecture |
+| Where and how big? | A YOLO11n detector for the box, MobileSAM to tighten it to the exact pixels |
+| How sure, really? | MC Dropout, which runs the scan 20 times and measures how much the answer wobbles, plus a check for scans unlike anything in training |
+| Why that answer? | Four levels of heat-map showing where the model looked, and a written report from a medical language model |
+
+On top of that, and unlike the yes/no version, it ships a full React interface
+built for a patient to actually use: English and Spanish throughout, an
+interactive walkthrough of the pipeline, a bounding box you can redraw by hand
+when the detector gets it wrong, and a symptom checklist that updates the risk
+score as you tick items.
+
+### How this compares to other work
+
+**BraTS** is the best-known public benchmark in this field — a challenge
+running since 2012 where teams compete at outlining brain tumors in MRI. Its
+2025 edition covers gliomas, meningiomas, cancer that has spread from
+elsewhere in the body, and scans taken before and after treatment.
+
+Closer to what this project does, **DISCERN** — built by researchers at
+Vall d'Hebron, VHIO and IDIBELL in Spain — tells three types of malignant
+brain tumor apart from MRI alone, and gets about **78%** right.
+
+That 78% is worth sitting with, because it puts the numbers further down this
+page in perspective. Telling tumor *types* apart from an image is genuinely
+hard. A research system scoring 99% on curated public datasets and a clinical
+system scoring 78% on real hospital cases are not doing the same job under the
+same conditions — the scans here are cleaner, more consistent, and already
+sorted into tidy categories. The honest read is that this project performs
+well *on its own benchmark*, which is a long way from performing well in a
+clinic.
+
+A team from UPM and CIBER-BBN, working with Children's National Hospital in
+Washington, also won a recent segmentation challenge focused on gliomas.
+
+The wider trend across the field is a move away from systems that only output
+a prediction, toward ones a specialist can inspect and argue with. Regulators
+including the FDA are explicit that a medical AI has to show it is safe,
+effective and transparent — not just accurate.
 
 ---
 
@@ -128,7 +207,8 @@ Given a brain MRI image (axial T1), the pipeline returns:
 Tumor-detection/
 ├── README.md                      ← this file
 ├── assets/
-│   └── pipeline-{light,dark}.svg  ← the pipeline flowchart in §9
+│   ├── pipeline-{light,dark}.svg  ← the pipeline flowchart in §9
+│   └── binary-ablation-*.svg      ← the yes/no-model improvement chart in §1
 ├── paper/
 │   └── brAIn_paper_en.pdf         ← full write-up (English translation of the original report)
 ├── notebooks/
