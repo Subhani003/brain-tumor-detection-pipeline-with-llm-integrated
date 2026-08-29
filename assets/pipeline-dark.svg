@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1690" role="img"
-           aria-label="Flowchart of the brain tumor detection pipeline: an uploaded MRI is preprocessed, expanded into five test-time augmentations, and classified by three CNNs in parallel. The best model feeds explainability, uncertainty, robustness and out-of-distribution checks; the Grad-CAM++ output seeds a YOLO and MobileSAM localization chain that produces a malignancy score, which is cross-checked by a focus crop and by MedGemma before the response is assembled. Five independent checks feed a shared needs-review flag.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1750" role="img"
+           aria-label="Flowchart of the brain tumor pipeline in nine plain-language stages. A scan arrives and is checked, the image is cleaned up and copied into five variations, three computer-vision models classify it and the most confident one is picked, four checks challenge that answer, a detector finds and measures the tumor, the model looks again at the tumor alone, a medical language model gives a second opinion, the system decides whether a human should review it, and the result is shown with options to get a written report, ask questions, or redraw the box.">
 <style>
   .nd{stroke-width:1.25}
   .nd-io{fill:#1B2126;stroke:#93A0AC}
@@ -13,13 +13,13 @@
   .t-edge{font-family:'DejaVu Sans Mono',Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:11px;fill:#6A757F;text-anchor:middle}
   .t-edge-l{text-anchor:start}
   .t-flag{font-family:'DejaVu Sans Mono',Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:10.5px;fill:#D8A845;text-anchor:end;font-weight:500}
-  .t-band{font-family:'DejaVu Sans Mono',Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:10px;letter-spacing:.12em;fill:#6A757F;text-anchor:start}
+  .t-sec{font-family:'DejaVu Sans Mono',Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:11px;font-weight:500;letter-spacing:.1em;fill:#6A757F;text-anchor:end}
   .ed{stroke:#6A757F;stroke-width:1.2;fill:none}
   .ed-soft{stroke:#6A757F;stroke-width:1.1;fill:none;stroke-dasharray:4 3;opacity:.75}
   .ed-rail{stroke:#D8A845;stroke-width:1.4;fill:none}
   .ed-loop{stroke:#93A0AC;stroke-width:1.1;fill:none;stroke-dasharray:5 4}
 </style>
-<rect x="0" y="0" width="900" height="1690" fill="#0d1117"/>
+<rect x="0" y="0" width="900" height="1750" fill="#0d1117"/>
 
         <defs>
           <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5"
@@ -36,199 +36,220 @@
           </marker>
         </defs>
 
-        <!-- ============ INPUT ============ -->
-        <rect rx="3" class="nd nd-io" x="320" y="26" width="220" height="62"/>
-        <text class="t-lbl" x="430" y="52">MRI slice</text>
-        <text class="t-sub" x="430" y="72">PNG · JPG</text>
+        <!-- ===== 1 ===== -->
+        <text class="t-sec" x="836" y="30">1 — THE SCAN ARRIVES</text>
 
-        <line class="ed" x1="430" y1="88" x2="430" y2="120" marker-end="url(#ah)"/>
-        <text class="t-edge t-edge-l" x="441" y="109">multipart/form-data</text>
+        <rect rx="3" class="nd nd-io" x="320" y="48" width="220" height="58"/>
+        <text class="t-lbl" x="430" y="73">Brain MRI scan</text>
+        <text class="t-sub" x="430" y="93">a PNG or JPG file</text>
 
-        <rect rx="3" class="nd nd-io" x="270" y="126" width="320" height="62"/>
-        <text class="t-lbl" x="430" y="152">POST /api/predict</text>
-        <text class="t-sub" x="430" y="172">guard · ≤20 MB · decodable</text>
+        <line class="ed" x1="430" y1="106" x2="430" y2="132" marker-end="url(#ah)"/>
 
-        <line class="ed" x1="430" y1="188" x2="430" y2="220" marker-end="url(#ah)"/>
-        <text class="t-edge t-edge-l" x="441" y="209">else → 400</text>
+        <rect rx="3" class="nd nd-io" x="290" y="138" width="280" height="58"/>
+        <text class="t-lbl" x="430" y="163">Upload check</text>
+        <text class="t-sub" x="430" y="183">POST /api/predict · ≤20 MB</text>
 
-        <!-- ============ PREPROCESS ============ -->
-        <rect rx="3" class="nd nd-io" x="240" y="226" width="380" height="82"/>
-        <text class="t-lbl" x="430" y="252">Preprocess</text>
-        <text class="t-sub" x="430" y="273">CLAHE 2.0 · 8×8 on LAB-L</text>
-        <text class="t-sub" x="430" y="292">→ 224×224 → ImageNet norm</text>
+        <line class="ed" x1="430" y1="196" x2="430" y2="264" marker-end="url(#ah)"/>
+        <text class="t-edge t-edge-l" x="441" y="228">rejected if the file</text>
+        <text class="t-edge t-edge-l" x="441" y="243">is too big or unreadable</text>
 
-        <line class="ed" x1="430" y1="308" x2="430" y2="340" marker-end="url(#ah)"/>
-        <text class="t-edge t-edge-l" x="441" y="329">tensor (1,3,224,224)</text>
+        <!-- ===== 2 ===== -->
+        <text class="t-sec" x="836" y="252">2 — PREPARE THE IMAGE</text>
 
-        <!-- original-image bypass -->
-        <path class="ed-soft" d="M240,267 L12,267 L12,891 L18,891" marker-end="url(#ah-soft)"/>
-        <path class="ed-soft" d="M12,1125 L18,1125" marker-end="url(#ah-soft)"/>
-        <text class="t-edge t-edge-l" x="22" y="257">original PIL — un-normalized</text>
+        <rect rx="3" class="nd nd-io" x="240" y="270" width="380" height="78"/>
+        <text class="t-lbl" x="430" y="295">Clean up the image</text>
+        <text class="t-sub" x="430" y="316">even out the contrast (CLAHE)</text>
+        <text class="t-sub" x="430" y="335">then resize to 224 × 224</text>
 
-        <!-- ============ AUGMENT ============ -->
-        <rect rx="3" class="nd nd-io" x="290" y="346" width="280" height="62"/>
-        <text class="t-lbl" x="430" y="372">TTA × 5</text>
-        <text class="t-sub" x="430" y="392">orig · hflip · ±5° · ×1.05</text>
+        <line class="ed" x1="430" y1="348" x2="430" y2="374" marker-end="url(#ah)"/>
 
-        <path class="ed" d="M430,408 L430,428 M151,428 L709,428 M151,428 L151,444 M430,428 L430,444 M709,428 L709,444"/>
-        <path class="ed" d="M151,436 L151,446 M430,436 L430,446 M709,436 L709,446" marker-end="url(#ah)"/>
+        <rect rx="3" class="nd nd-io" x="290" y="380" width="280" height="58"/>
+        <text class="t-lbl" x="430" y="405">Make 5 versions of it</text>
+        <text class="t-sub" x="430" y="425">flipped, tilted, brighter</text>
 
-        <!-- ============ ENSEMBLE ============ -->
-        <rect rx="3" class="nd nd-model" x="24" y="450" width="254" height="96"/>
-        <text class="t-lbl" x="151" y="478">ConvNeXt-Tiny</text>
-        <text class="t-sub" x="151" y="501">1 clean pass → E(x)</text>
-        <text class="t-sub" x="151" y="523">TTA×5 → mean softmax</text>
+        <path class="ed" d="M430,438 L430,478"/>
 
-        <rect rx="3" class="nd nd-model" x="303" y="450" width="254" height="96"/>
-        <text class="t-lbl" x="430" y="478">EfficientNet-B3</text>
-        <text class="t-sub" x="430" y="501">1 clean pass → E(x)</text>
-        <text class="t-sub" x="430" y="523">TTA×5 → mean softmax</text>
+        <!-- original-image bypass (targets already at their shifted positions) -->
+        <path class="ed-soft" d="M240,309 L12,309 L12,940 L18,940" marker-end="url(#ah-soft)"/>
+        <path class="ed-soft" d="M12,1192 L18,1192" marker-end="url(#ah-soft)"/>
+        <text class="t-edge t-edge-l" x="22" y="300">the original image, untouched</text>
 
-        <rect rx="3" class="nd nd-model" x="582" y="450" width="254" height="96"/>
-        <text class="t-lbl" x="709" y="478">ResNet-50</text>
-        <text class="t-sub" x="709" y="501">1 clean pass → E(x)</text>
-        <text class="t-sub" x="709" y="523">TTA×5 → mean softmax</text>
+        <!-- everything below the fan sits 20px lower, to clear the section label -->
+        <g transform="translate(0,20)">
+        <path class="ed" d="M151,458 L709,458 M151,458 L151,478 M430,458 L430,478 M709,458 L709,478"/>
+        <path class="ed" d="M151,470 L151,480 M430,470 L430,480 M709,470 L709,480" marker-end="url(#ah)"/>
 
-        <path class="ed" d="M151,546 L151,572 M430,546 L430,572 M709,546 L709,572 M151,572 L836,572"/>
-        <line class="ed" x1="430" y1="572" x2="430" y2="590" marker-end="url(#ah)"/>
-        <path class="ed" d="M723,572 L723,590" marker-end="url(#ah)"/>
+        <!-- ===== 3 ===== -->
+        <text class="t-sec" x="836" y="472">3 — COMPUTER VISION: THREE MODELS LOOK AT IT</text>
 
-        <rect rx="3" class="nd nd-io" x="303" y="596" width="254" height="62"/>
-        <text class="t-lbl" x="430" y="622">Best model</text>
-        <text class="t-sub" x="430" y="642">argmax(TTA confidence)</text>
+        <rect rx="3" class="nd nd-model" x="24" y="488" width="254" height="84"/>
+        <text class="t-lbl" x="151" y="514">ConvNeXt-Tiny</text>
+        <text class="t-sub" x="151" y="536">sees all 5 versions</text>
+        <text class="t-sub" x="151" y="556">99.29% on the test set</text>
 
-        <rect rx="3" class="nd nd-check" x="610" y="596" width="226" height="62"/>
-        <text class="t-lbl" x="723" y="622">3-way agreement</text>
-        <text class="t-sub" x="723" y="642">unanimous?</text>
+        <rect rx="3" class="nd nd-model" x="303" y="488" width="254" height="84"/>
+        <text class="t-lbl" x="430" y="514">EfficientNet-B3</text>
+        <text class="t-sub" x="430" y="536">sees all 5 versions</text>
+        <text class="t-sub" x="430" y="556">99.48% on the test set</text>
 
-        <path class="ed-rail" d="M836,627 L868,627"/>
-        <text class="t-flag" x="864" y="618">flag</text>
+        <rect rx="3" class="nd nd-model" x="582" y="488" width="254" height="84"/>
+        <text class="t-lbl" x="709" y="514">ResNet-50</text>
+        <text class="t-sub" x="709" y="536">sees all 5 versions</text>
+        <text class="t-sub" x="709" y="556">99.34% on the test set</text>
 
-        <path class="ed" d="M430,658 L430,680 M118,680 L742,680 M118,680 L118,698 M326,680 L326,698 M534,680 L534,698 M742,680 L742,698"/>
-        <path class="ed" d="M118,690 L118,700 M326,690 L326,700 M534,690 L534,700 M742,690 L742,700" marker-end="url(#ah)"/>
+        <path class="ed" d="M151,572 L151,596 M430,572 L430,596 M709,572 L709,596 M151,596 L836,596"/>
+        <line class="ed" x1="430" y1="596" x2="430" y2="614" marker-end="url(#ah)"/>
+        <path class="ed" d="M723,596 L723,614" marker-end="url(#ah)"/>
 
-        <!-- ============ ANALYSE ============ -->
-        <rect rx="3" class="nd nd-model" x="24" y="704" width="188" height="96"/>
-        <text class="t-lbl" x="118" y="732">Hierarchical XAI</text>
-        <text class="t-sub" x="118" y="755">Grad-CAM · CAM++</text>
-        <text class="t-sub" x="118" y="777">LayerCAM → L1–L4</text>
+        <rect rx="3" class="nd nd-io" x="303" y="620" width="254" height="58"/>
+        <text class="t-lbl" x="430" y="645">Pick the most confident</text>
+        <text class="t-sub" x="430" y="665">best of the three</text>
 
-        <rect rx="3" class="nd nd-model" x="232" y="704" width="188" height="96"/>
-        <text class="t-lbl" x="326" y="732">MC Dropout</text>
-        <text class="t-sub" x="326" y="755">T = 20 passes</text>
-        <text class="t-sub" x="326" y="777">epistemic · aleatoric</text>
+        <rect rx="3" class="nd nd-check" x="610" y="620" width="226" height="58"/>
+        <text class="t-lbl" x="723" y="645">Do all three agree?</text>
+        <text class="t-sub" x="723" y="665">if not, raise a flag</text>
 
-        <rect rx="3" class="nd nd-check" x="440" y="704" width="188" height="96"/>
-        <text class="t-lbl" x="534" y="732">Robustness</text>
-        <text class="t-sub" x="534" y="755">blur · noise · Rician</text>
-        <text class="t-sub" x="534" y="777">CAM cosine + pred</text>
+        <path class="ed-rail" d="M836,649 L868,649"/>
+        <text class="t-flag" x="864" y="640">flag</text>
 
-        <rect rx="3" class="nd nd-check" x="648" y="704" width="188" height="96"/>
-        <text class="t-lbl" x="742" y="732">Energy OOD</text>
-        <text class="t-sub" x="742" y="755">E(x) = −logsumexp</text>
-        <text class="t-sub" x="742" y="777">vs p95 threshold</text>
+        <!-- ===== 4 ===== -->
+        <text class="t-sec" x="836" y="702">4 — FOUR CHECKS CHALLENGE THE ANSWER</text>
 
-        <path class="ed-rail" d="M326,800 L326,826 M534,800 L534,826 M742,800 L742,826 M326,826 L868,826"/>
-        <text class="t-flag" x="864" y="817">flag ×3</text>
+        <path class="ed" d="M430,678 L430,716 M118,716 L742,716 M118,716 L118,736 M326,716 L326,736 M534,716 L534,736 M742,716 L742,736"/>
+        <path class="ed" d="M118,728 L118,738 M326,728 L326,738 M534,728 L534,738 M742,728 L742,738" marker-end="url(#ah)"/>
 
-        <line class="ed" x1="118" y1="800" x2="118" y2="852" marker-end="url(#ah)"/>
-        <text class="t-edge t-edge-l" x="129" y="833">Grad-CAM++ seed</text>
+        <rect rx="3" class="nd nd-model" x="24" y="736" width="188" height="84"/>
+        <text class="t-lbl" x="118" y="762">Where did it look?</text>
+        <text class="t-sub" x="118" y="784">heat-maps over</text>
+        <text class="t-sub" x="118" y="804">4 levels of detail</text>
 
-        <!-- ============ LOCALIZE ============ -->
-        <rect rx="3" class="nd nd-model" x="24" y="858" width="188" height="66"/>
-        <text class="t-lbl" x="118" y="886">YOLO11n</text>
-        <text class="t-sub" x="118" y="906">mAP50 0.918</text>
+        <rect rx="3" class="nd nd-model" x="232" y="736" width="188" height="84"/>
+        <text class="t-lbl" x="326" y="762">How sure is it?</text>
+        <text class="t-sub" x="326" y="784">runs the scan 20×,</text>
+        <text class="t-sub" x="326" y="804">measures the wobble</text>
 
-        <rect rx="3" class="nd nd-model" x="232" y="858" width="188" height="66"/>
-        <text class="t-lbl" x="326" y="886">MobileSAM</text>
-        <text class="t-sub" x="326" y="906">bbox-prompted mask</text>
+        <rect rx="3" class="nd nd-check" x="440" y="736" width="188" height="84"/>
+        <text class="t-lbl" x="534" y="762">Survives noise?</text>
+        <text class="t-sub" x="534" y="784">blur, grain, brightness</text>
+        <text class="t-sub" x="534" y="804">4 distortions tried</text>
 
-        <rect rx="3" class="nd nd-check" x="440" y="858" width="188" height="66"/>
-        <text class="t-lbl" x="534" y="886">Area check</text>
-        <text class="t-sub" x="534" y="906">plausible 0.30–0.90</text>
+        <rect rx="3" class="nd nd-check" x="648" y="736" width="188" height="84"/>
+        <text class="t-lbl" x="742" y="762">Unusual scan?</text>
+        <text class="t-sub" x="742" y="784">unlike anything</text>
+        <text class="t-sub" x="742" y="804">seen in training</text>
 
-        <rect rx="3" class="nd nd-io" x="648" y="858" width="188" height="66"/>
-        <text class="t-lbl" x="742" y="886">Malignancy</text>
-        <text class="t-sub" x="742" y="906">base × size × conf</text>
+        <path class="ed-rail" d="M326,820 L326,844 M534,820 L534,844 M742,820 L742,844 M326,844 L868,844"/>
+        <text class="t-flag" x="864" y="835">flag ×3</text>
 
-        <line class="ed" x1="212" y1="891" x2="226" y2="891" marker-end="url(#ah)"/>
-        <text class="t-edge" x="222" y="850">bbox</text>
-        <line class="ed" x1="420" y1="891" x2="434" y2="891" marker-end="url(#ah)"/>
-        <text class="t-edge" x="430" y="850">mask</text>
-        <line class="ed" x1="628" y1="891" x2="642" y2="891" marker-end="url(#ah)"/>
-        <text class="t-edge" x="638" y="850">size %</text>
+        <line class="ed" x1="118" y1="820" x2="118" y2="880" marker-end="url(#ah)"/>
+        <text class="t-edge t-edge-l" x="129" y="862">where it looked</text>
 
-        <!-- ============ SELF-CHECK ============ -->
-        <path class="ed" d="M742,924 L742,940 L430,940 L430,958" marker-end="url(#ah)"/>
-        <text class="t-edge t-edge-l" x="441" y="936">bbox</text>
+        <!-- ===== 5 ===== -->
+        <text class="t-sec" x="836" y="868">5 — FIND AND MEASURE THE TUMOR</text>
 
-        <rect rx="3" class="nd nd-check" x="303" y="964" width="254" height="62"/>
-        <text class="t-lbl" x="430" y="990">Focus-crop re-check</text>
-        <text class="t-sub" x="430" y="1010">crop to bbox → re-classify</text>
+        <rect rx="3" class="nd nd-model" x="24" y="886" width="188" height="68"/>
+        <text class="t-lbl" x="118" y="914">Find the tumor</text>
+        <text class="t-sub" x="118" y="934">YOLO11n detector</text>
 
-        <path class="ed-rail" d="M430,1048 L868,1048"/>
-        <text class="t-flag" x="864" y="1039">flag</text>
+        <rect rx="3" class="nd nd-model" x="232" y="886" width="188" height="68"/>
+        <text class="t-lbl" x="326" y="914">Trace its outline</text>
+        <text class="t-sub" x="326" y="934">MobileSAM</text>
 
-        <path class="ed" d="M430,1026 L430,1060 L151,1060 L151,1074" marker-end="url(#ah)"/>
+        <rect rx="3" class="nd nd-check" x="440" y="886" width="188" height="68"/>
+        <text class="t-lbl" x="534" y="914">Sensible size?</text>
+        <text class="t-sub" x="534" y="934">sanity check</text>
 
-        <!-- ============ CROSS-CHECK ============ -->
-        <rect rx="3" class="nd nd-llm" x="24" y="1080" width="254" height="90"/>
-        <text class="t-lbl" x="151" y="1108">MedGemma 1.5 4B</text>
-        <text class="t-sub" x="151" y="1130">vision · size · bbox_norm</text>
-        <text class="t-sub" x="151" y="1151">via Ollama, local CPU</text>
+        <rect rx="3" class="nd nd-io" x="648" y="886" width="188" height="68"/>
+        <text class="t-lbl" x="742" y="914">Risk score 0–10</text>
+        <text class="t-sub" x="742" y="934">type × size × certainty</text>
 
-        <rect rx="3" class="nd nd-model" x="303" y="1080" width="254" height="90"/>
-        <text class="t-lbl" x="430" y="1108">Multi-strategy SAM</text>
-        <text class="t-sub" x="430" y="1130">4 prompts · top-3 peaks</text>
-        <text class="t-sub" x="430" y="1151">best contrast wins</text>
+        <line class="ed" x1="212" y1="920" x2="226" y2="920" marker-end="url(#ah)"/>
+        <text class="t-edge" x="222" y="878">box</text>
+        <line class="ed" x1="420" y1="920" x2="434" y2="920" marker-end="url(#ah)"/>
+        <text class="t-edge" x="430" y="878">outline</text>
+        <line class="ed" x1="628" y1="920" x2="642" y2="920" marker-end="url(#ah)"/>
+        <text class="t-edge" x="638" y="878">size</text>
 
-        <rect rx="3" class="nd nd-io" x="582" y="1080" width="254" height="90"/>
-        <text class="t-lbl" x="709" y="1108">Size trust ladder</text>
-        <text class="t-sub" x="709" y="1130">YOLO px → MG-SAM px</text>
-        <text class="t-sub" x="709" y="1151">→ MG free text</text>
+        <!-- ===== 6 ===== -->
+        <text class="t-sec" x="836" y="982">6 — LOOK AGAIN, TO BE SURE</text>
 
-        <line class="ed" x1="278" y1="1125" x2="297" y2="1125" marker-end="url(#ah)"/>
-        <line class="ed" x1="557" y1="1125" x2="576" y2="1125" marker-end="url(#ah)"/>
+        <path class="ed" d="M742,954 L742,970 L430,970 L430,990" marker-end="url(#ah)"/>
 
-        <path class="ed" d="M709,1170 L709,1192 L430,1192 L430,1208" marker-end="url(#ah)"/>
-        <text class="t-edge t-edge-l" x="441" y="1188">rescored</text>
+        <rect rx="3" class="nd nd-check" x="303" y="996" width="254" height="74"/>
+        <text class="t-lbl" x="430" y="1022">Look again — tumor only</text>
+        <text class="t-sub" x="430" y="1043">does it still say the same</text>
+        <text class="t-sub" x="430" y="1062">with the background gone?</text>
 
-        <!-- ============ GATE + RESPONSE ============ -->
-        <path class="ed-rail" d="M868,627 L868,1257 L626,1257" marker-end="url(#ah-rail)"/>
+        <path class="ed-rail" d="M430,1084 L868,1084"/>
+        <text class="t-flag" x="864" y="1075">flag</text>
 
-        <rect rx="3" class="nd nd-gate" x="240" y="1214" width="380" height="86"/>
-        <text class="t-lbl" x="430" y="1243">needs_review</text>
-        <text class="t-sub" x="430" y="1265">OR of every flag on the rail</text>
-        <text class="t-sub" x="430" y="1286">→ drives the UI trust banner</text>
+        <path class="ed" d="M430,1070 L430,1112 L151,1112 L151,1130" marker-end="url(#ah)"/>
 
-        <line class="ed" x1="430" y1="1300" x2="430" y2="1334" marker-end="url(#ah)"/>
+        <!-- ===== 7 ===== -->
+        <text class="t-sec" x="836" y="1096">7 — A SECOND OPINION, IN WORDS</text>
 
-        <rect rx="3" class="nd nd-io" x="303" y="1340" width="254" height="62"/>
-        <text class="t-lbl" x="430" y="1366">JSON response</text>
-        <text class="t-sub" x="430" y="1386">13 top-level blocks</text>
+        <rect rx="3" class="nd nd-llm" x="24" y="1130" width="254" height="84"/>
+        <text class="t-lbl" x="151" y="1156">Second opinion</text>
+        <text class="t-sub" x="151" y="1178">a medical AI reads</text>
+        <text class="t-sub" x="151" y="1198">the scan itself</text>
 
-        <line class="ed" x1="430" y1="1402" x2="430" y2="1436" marker-end="url(#ah)"/>
+        <rect rx="3" class="nd nd-model" x="303" y="1130" width="254" height="84"/>
+        <text class="t-lbl" x="430" y="1156">Refine the outline</text>
+        <text class="t-sub" x="430" y="1178">4 attempts, keeps</text>
+        <text class="t-sub" x="430" y="1198">the clearest one</text>
 
-        <rect rx="3" class="nd nd-io" x="303" y="1442" width="254" height="62"/>
-        <text class="t-lbl" x="430" y="1468">React UI renders</text>
-        <text class="t-sub" x="430" y="1488">EN / ES</text>
+        <rect rx="3" class="nd nd-io" x="582" y="1130" width="254" height="84"/>
+        <text class="t-lbl" x="709" y="1156">Which size to trust</text>
+        <text class="t-sub" x="709" y="1178">detector first,</text>
+        <text class="t-sub" x="709" y="1198">the AI's guess last</text>
 
-        <path class="ed" d="M430,1504 L430,1524 M151,1524 L709,1524 M151,1524 L151,1538 M430,1524 L430,1538 M709,1524 L709,1538"/>
-        <path class="ed" d="M151,1530 L151,1540 M430,1530 L430,1540 M709,1530 L709,1540" marker-end="url(#ah)"/>
+        <line class="ed" x1="278" y1="1172" x2="297" y2="1172" marker-end="url(#ah)"/>
+        <line class="ed" x1="557" y1="1172" x2="576" y2="1172" marker-end="url(#ah)"/>
 
-        <!-- ============ ON DEMAND ============ -->
-        <rect rx="3" class="nd nd-llm" x="24" y="1544" width="254" height="88"/>
-        <text class="t-lbl" x="151" y="1572">/api/explain</text>
-        <text class="t-sub" x="151" y="1594">diagnostic report</text>
-        <text class="t-sub" x="151" y="1615">basic / advanced</text>
+        <path class="ed" d="M709,1214 L709,1236 L430,1236 L430,1256" marker-end="url(#ah)"/>
+        <text class="t-edge t-edge-l" x="441" y="1232">score updated</text>
 
-        <rect rx="3" class="nd nd-llm" x="303" y="1544" width="254" height="88"/>
-        <text class="t-lbl" x="430" y="1572">/api/chat</text>
-        <text class="t-sub" x="430" y="1594">scan-aware Q&amp;A</text>
-        <text class="t-sub" x="430" y="1615">patient / doctor voice</text>
+        <!-- ===== 8 ===== -->
+        <text class="t-sec" x="836" y="1264">8 — DECIDE, THEN SHOW THE RESULT</text>
 
-        <rect rx="3" class="nd nd-io" x="582" y="1544" width="254" height="88"/>
-        <text class="t-lbl" x="709" y="1572">/api/predict_manual_bbox</text>
-        <text class="t-sub" x="709" y="1594">user redraws the box</text>
-        <text class="t-sub" x="709" y="1615">→ re-measure</text>
+        <path class="ed-rail" d="M868,649 L868,1322 L626,1322" marker-end="url(#ah-rail)"/>
+
+        <rect rx="3" class="nd nd-gate" x="240" y="1282" width="380" height="80"/>
+        <text class="t-lbl" x="430" y="1309">Should a human check this?</text>
+        <text class="t-sub" x="430" y="1331">yes if ANY flag above fired</text>
+        <text class="t-sub" x="430" y="1351">→ turns the verdict amber</text>
+
+        <line class="ed" x1="430" y1="1362" x2="430" y2="1390" marker-end="url(#ah)"/>
+
+        <rect rx="3" class="nd nd-io" x="303" y="1396" width="254" height="58"/>
+        <text class="t-lbl" x="430" y="1421">Results put together</text>
+        <text class="t-sub" x="430" y="1441">sent to the browser</text>
+
+        <line class="ed" x1="430" y1="1454" x2="430" y2="1482" marker-end="url(#ah)"/>
+
+        <rect rx="3" class="nd nd-io" x="303" y="1488" width="254" height="58"/>
+        <text class="t-lbl" x="430" y="1513">Shown on screen</text>
+        <text class="t-sub" x="430" y="1533">in English or Spanish</text>
+
+        <!-- ===== 9 ===== -->
+        <text class="t-sec" x="836" y="1572">9 — WHAT YOU CAN DO NEXT</text>
+
+        <path class="ed" d="M430,1546 L430,1590 M151,1590 L709,1590 M151,1590 L151,1608 M430,1590 L430,1608 M709,1590 L709,1608"/>
+        <path class="ed" d="M151,1600 L151,1610 M430,1600 L430,1610 M709,1600 L709,1610" marker-end="url(#ah)"/>
+
+        <rect rx="3" class="nd nd-llm" x="24" y="1610" width="254" height="84"/>
+        <text class="t-lbl" x="151" y="1636">Get a written report</text>
+        <text class="t-sub" x="151" y="1658">simple or detailed,</text>
+        <text class="t-sub" x="151" y="1678">written by the medical AI</text>
+
+        <rect rx="3" class="nd nd-llm" x="303" y="1610" width="254" height="84"/>
+        <text class="t-lbl" x="430" y="1636">Ask questions</text>
+        <text class="t-sub" x="430" y="1658">answers as a doctor</text>
+        <text class="t-sub" x="430" y="1678">or as a patient</text>
+
+        <rect rx="3" class="nd nd-io" x="582" y="1610" width="254" height="84"/>
+        <text class="t-lbl" x="709" y="1636">Redraw the box</text>
+        <text class="t-sub" x="709" y="1658">if the detector got it</text>
+        <text class="t-sub" x="709" y="1678">wrong — size recalculated</text>
+        </g>
       </svg>

@@ -114,8 +114,8 @@ Two things are worth pulling out of that:
   have looked like it barely mattered.
 
 That result is why CLAHE is still applied to **every** scan in the current
-system rather than only to images that look low-contrast — see the Preprocess
-stage in [§9](#9-architecture--pipeline).
+system rather than only to images that look low-contrast — it's step 2,
+"clean up the image", in [§9](#9-how-it-works-step-by-step).
 
 > These binary figures come from a different, smaller dataset than the one
 > used here, so they are not directly comparable to the 99.48% multiclass
@@ -183,21 +183,21 @@ effective and transparent — not just accurate.
 
 ## 2. What the system does
 
-Given a brain MRI image (axial T1), the pipeline returns:
+Upload one brain MRI slice and you get all of this back:
 
-| Output | How it's produced |
+| What you get | How it's done |
 |---|---|
-| **Tumor type** — `glioma / meningioma / pituitary / no_tumor` | Ensemble of 3 CNNs (ConvNeXt-Tiny + EfficientNet-B3 + ResNet-50), each with test-time augmentation |
-| **Confidence + uncertainty** | MC Dropout (20 stochastic passes) + epistemic/aleatoric decomposition |
-| **Out-of-distribution check** | Energy-based score against the training distribution |
-| **Focus-crop consistency check** | Re-classifies the model's own Grad-CAM++ attention region; disagreement flags unreliable reasoning |
-| **Visual explanations** | 4-level hierarchical XAI: Grad-CAM, Grad-CAM++, LayerCAM (block4), fused LayerCAM |
-| **Tumor bounding box + size** | YOLO11n (Cheng dataset) + MobileSAM segmentation, cross-validated against an independent MedGemma vision assessment |
-| **Adversarial robustness** | Re-classifies under blur / brightness / noise / scanner-artifact perturbation; flags fragile predictions |
-| **Malignancy score (0–10)** | Type-based clinical baseline × confidence × size-derived bonus, adjustable by user-reported symptoms |
-| **Anatomical localization** | Region label mapped to an interactive 3D brain atlas (11 regions) |
-| **Diagnostic report** | MedGemma 1.5 4B (via Ollama) — basic / advanced modes, EN / ES |
-| **Conversational Q&A** | Chat panel with patient/doctor audiences, scan-context-aware |
+| **The likely tumor type** — glioma, meningioma, pituitary, or none | Three computer-vision models vote on it (ConvNeXt-Tiny, EfficientNet-B3, ResNet-50), each shown five versions of the scan |
+| **How confident it is — and how shaky that confidence is** | The scan is run 20 times with parts of the network randomly switched off. If the answer keeps changing, it isn't really sure (MC Dropout) |
+| **A warning when the scan looks unlike anything it was trained on** | An energy score compared against the range seen in training |
+| **A second look at the tumor on its own** | The image is cropped down to just the region the model focused on and classified again. A different answer means it was reading the background, not the lesion |
+| **Heat-maps showing where it looked** | Four levels of detail: Grad-CAM, Grad-CAM++, LayerCAM at block 4, and a fused version |
+| **A box around the tumor, and how big it is** | A YOLO11n detector draws the box, MobileSAM traces the outline, and MedGemma measures it independently as a cross-check |
+| **A stress test** | The scan is re-run blurred, brightened and full of noise. Predictions that change under that are flagged as fragile |
+| **A risk score out of 10** | The tumor type's baseline risk × how confident the model is × how large the lesion is — and it updates when you tick symptoms |
+| **Where it sits in the brain** | A region label linked to an interactive 3D atlas with 11 labelled areas |
+| **A written report** | MedGemma 1.5 4B running on your own machine — simple or detailed, English or Spanish |
+| **A chat to ask follow-up questions** | The same model, answering either as a doctor would or in plain patient-friendly language, aware of this specific scan |
 
 ---
 
@@ -407,28 +407,32 @@ YOLO11n tumor-localization detector.
 
 ---
 
-## 9. Architecture & pipeline
+## 9. How it works, step by step
 
-Every stage a scan passes through, from the upload panel to the generated
-report. This is the real call order in [`app/app.py`](app/app.py) — nine
-stages, three CNNs, two segmentation models, one vision-language model, and
-40 forward passes per scan.
+Everything that happens between dropping a scan on the upload panel and
+reading the report, in nine plain-language steps. This is the real order
+things run in [`app/app.py`](app/app.py), not a simplified sketch — three
+CNNs, two models for finding and outlining the tumor, one medical language
+model, and 40 passes through a network per scan.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/pipeline-dark.svg">
-  <img src="assets/pipeline-light.svg" alt="Pipeline flowchart: an uploaded MRI is preprocessed, expanded into five test-time augmentations, and classified by three CNNs in parallel. The best model feeds explainability, uncertainty, robustness and out-of-distribution checks; the Grad-CAM++ output seeds a YOLO11n and MobileSAM localization chain that produces a malignancy score, which is then cross-checked by a focus crop and by MedGemma before the response is assembled. Five independent checks feed a shared needs_review flag.">
+  <img src="assets/pipeline-light.svg" alt="Flowchart of the pipeline in nine stages. A scan arrives and is checked, the image is cleaned up and copied into five variations, three computer-vision models classify it and the most confident is picked, four checks challenge that answer, a detector finds and measures the tumor, the model looks again at the tumor alone, a medical language model gives a second opinion, the system decides whether a human should review it, and the result is shown with options to get a written report, ask questions, or redraw the box.">
 </picture>
 
-**Reading it** — teal = neural inference · amber = verification gate · violet =
-language model · grey = I/O and scoring. The dashed line is the un-normalized
-original image, which YOLO, SAM, the colormap views and MedGemma all consume
-directly rather than working from the normalized tensor.
+**Reading the colours** — teal is a neural network doing the work, amber is a
+check that can raise a flag, violet is the medical language model, grey is
+input, output and scoring. The dashed line running down the left is the
+original image being carried along untouched: the tumor detector and the
+language model need the real scan, not the resized, contrast-adjusted copy the
+classifiers work from.
 
-The amber rail down the right is the part worth noticing: five independent
-checks — model disagreement, MC-Dropout spread, robustness collapse,
-energy-based OOD, and the focus-crop re-check — all write to the same
-`needs_review` flag. Any one of them alone turns the verdict banner amber, so
-a confident-looking softmax score never reaches the user unchallenged.
+The amber rail down the right side is the part worth noticing. Five separate
+checks — the three models disagreeing, the answer wobbling when the scan is
+re-run, the prediction breaking under noise, the scan looking unfamiliar, and
+the model changing its mind once the background is cropped away — all feed the
+same flag. Any single one of them turns the verdict amber, so a confident-looking
+score never reaches the user unchallenged.
 
 Two design decisions the diagram makes visible:
 
