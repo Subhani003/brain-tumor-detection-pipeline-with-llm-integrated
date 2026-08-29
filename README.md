@@ -1,6 +1,13 @@
-# brAIn — Brain Tumor Detection Pipeline with LLM Integration
+# brAIn — Brain Tumor Detection with Computer Vision and LLMs
 
-**Mustafa Subhani · Arnau Rey**
+**Explainable multiclass MRI classification · 99.48% on a held-out test set ·
+runs entirely on your own machine**
+
+Mustafa Subhani · Arnau Rey
+
+`PyTorch` · `ConvNeXt-Tiny` · `EfficientNet-B3` · `ResNet-50` · `YOLO11n` ·
+`MobileSAM` · `Grad-CAM / LayerCAM` · `MC Dropout` · `MedGemma 1.5 4B` ·
+`Ollama` · `Flask` · `React`
 
 Upload a brain MRI slice and this system tells you which of four tumor types
 it looks like — but it doesn't stop at the label. It shows you how sure it is,
