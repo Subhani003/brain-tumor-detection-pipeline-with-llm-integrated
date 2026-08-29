@@ -2,29 +2,30 @@
 
 **Mustafa Subhani · Arnau Rey**
 
-Multimodal brain MRI classification system with explainability, uncertainty
-quantification, adversarial robustness testing, and an LLM-generated
-diagnostic report. Given a brain MRI slice, it returns not just a label but
-the reasoning behind it — model agreement, uncertainty, visual explanations,
-and a plain-language report from a medical vision-language model.
+Upload a brain MRI slice and this system tells you which of four tumor types
+it looks like — but it doesn't stop at the label. It shows you how sure it is,
+where in the image it was looking, where the tumor is and how big, whether its
+answer survives being challenged, and finally writes the whole thing up in
+plain words you can read or argue with.
+
+![The tumor found, boxed, and measured — with two independent size estimates side by side](notebooks/assets/analysis/03_malignancy_assessment.png)
 
 > **Research / educational project.** Not a medical device. Not validated by
 > any regulatory authority. Not for clinical decision-making.
 
----
+**[Why it exists](#1-why-this-project-exists)** ·
+**[What you get](#2-what-the-system-does)** ·
+**[See it working](#3-see-it-working)** ·
+**[How it works](#4-how-it-works-step-by-step)** ·
+**[Run it yourself](#7-first-time-setup)** ·
+**[Results](#11-results-in-detail)** ·
+**[Limitations](#12-limitations--future-work)**
 
-## Demo
-
-Don't want to run the whole stack? [`notebooks/demo.ipynb`](notebooks/demo.ipynb)
-walks through the full pipeline end-to-end on a real MRI — classification,
-uncertainty, explainability heat-maps, tumor segmentation, robustness testing,
-metrics, the 3D brain atlas, and a real MedGemma-generated report — with
-every output already captured, so it renders fully on GitHub with no setup
-required.
-
-For the full write-up — motivation, related work, methodology, and detailed
+For the full write-up — motivation, related work, methodology and detailed
 results — see [`paper/brAIn_paper_en.pdf`](paper/brAIn_paper_en.pdf), an
 English translation of the project's original report.
+
+---
 
 ## Results at a glance
 
@@ -57,6 +58,7 @@ recomputed for this README:
 ---
 
 ## 1. Why this project exists
+
 
 ### The problem
 
@@ -115,7 +117,7 @@ Two things are worth pulling out of that:
 
 That result is why CLAHE is still applied to **every** scan in the current
 system rather than only to images that look low-contrast — it's step 2,
-"clean up the image", in [§9](#9-how-it-works-step-by-step).
+"clean up the image", in [§4](#4-how-it-works-step-by-step).
 
 > These binary figures come from a different, smaller dataset than the one
 > used here, so they are not directly comparable to the 99.48% multiclass
@@ -183,6 +185,7 @@ effective and transparent — not just accurate.
 
 ## 2. What the system does
 
+
 Upload one brain MRI slice and you get all of this back:
 
 | What you get | How it's done |
@@ -201,213 +204,118 @@ Upload one brain MRI slice and you get all of this back:
 
 ---
 
-## 3. Folder layout
+## 3. See it working
 
-```
-Tumor-detection/
-├── README.md                      ← this file
-├── assets/
-│   ├── pipeline-{light,dark}.svg  ← the pipeline flowchart in §9
-│   └── binary-ablation-*.svg      ← the yes/no-model improvement chart in §1
-├── paper/
-│   └── brAIn_paper_en.pdf         ← full write-up (English translation of the original report)
-├── notebooks/
-│   └── demo.ipynb                 ← executed walkthrough of the full pipeline
-├── app/                           ← runnable application
-│   ├── app.py                     ← Flask backend (HTTP server on :7860)
-│   ├── requirements.txt           ← Python dependencies
-│   ├── cheng_yolo.pt              ← YOLO weights for tumor bbox (not tracked in git — see below)
-│   ├── llm/                       ← MedGemma client + Ollama prompts
-│   ├── preprocessing/              ← brain extraction, CLAHE, denoising
-│   ├── models/                    ← trained weights (not tracked in git — see below)
-│   │   └── v2/                    ← CNN ensemble (ConvNeXt + EffNet + ResNet)
-│   ├── static/                    ← built React UI + 3D brain atlas GLBs
-│   ├── frontend/                  ← React source (npm run build → static/)
-│   └── src/                       ← training + evaluation scripts
-│       ├── train_v2.py            ← train any of the 3 backbones
-│       └── eval_v2.py             ← test-set metrics + confusion matrices
-├── dataset/                       ← combined, deduplicated split (not tracked in git)
-│   ├── train/  val/  test/
-└── reports/                       ← evaluation metrics + confusion matrices (tracked)
-```
 
-**Not tracked in git**: `dataset/` (~280 MB), `app/models/` (~430 MB — individual
-checkpoints exceed GitHub's 100 MB file limit), `app/frontend/node_modules/`,
-`app/.venv/`. These are excluded via `.gitignore` to keep the repo a browsable
-portfolio piece rather than an asset dump — see the demo notebook or
-`reports/` for pre-computed results, or the setup steps below to run it
-yourself with your own weights/dataset.
+One real scan, start to finish. Every image below is a screenshot of the app
+actually running — nothing is a mockup. For the same walkthrough with more
+detail on each panel, see [`notebooks/demo.ipynb`](notebooks/demo.ipynb).
 
----
+### Step 1 · Drop in a scan
 
-## 4. Requirements
+Drag an MRI slice onto the panel, or click to browse. The tabs along the top
+are the four areas of the app — analysis, metrics, a walkthrough of how it
+works, and the English/Spanish switch. Further down this same page there are
+ready-made sample scans from all three datasets, so you can try it without
+having to find a scan of your own first.
 
-| Component | Version | Why |
-|---|---|---|
-| **Python** | 3.11 (torch's CPU wheel doesn't yet support 3.12+) | Backend |
-| **Node.js** | 18+ | Frontend (only if rebuilding UI) |
-| **Ollama** | latest | Serves MedGemma 1.5 4B locally |
-| **GPU** | Optional — NVIDIA recommended for training | Inference runs fine on CPU (`torch==2.2.0+cpu`); MedGemma calls are slower without a GPU (a few minutes per report on CPU vs. seconds on GPU) |
-| **OS** | Windows 10/11, Linux | Tested on both Windows 11 (CPU-only) and Linux + RTX GPU |
+![The upload panel, with the app's navigation tabs along the top](notebooks/assets/analysis/00_upload_panel.png)
 
----
+### Step 2 · The contrast gets fixed before anything else
 
-## 5. First-time setup
+Every scan goes through CLAHE first. This is the step that cut missed tumors
+by a third back in the yes/no version — and here you can see why. On the
+right, the lesion separates from healthy tissue in a way it simply doesn't on
+the left.
 
-### 5.1 Install Python dependencies
+![The same meningioma scan before and after CLAHE contrast enhancement](notebooks/assets/preprocessing/01_clahe_before_after.png)
 
-```powershell
-cd app
-py -3.11 -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
+### Step 3 · Three models vote
 
-### 5.2 Pull MedGemma into Ollama
+Each model gives its own answer and its own confidence. When all three land on
+the same class, that agreement is itself evidence. When they split, the system
+says so rather than quietly picking the winner.
 
-```powershell
-# Install Ollama first: https://ollama.com/download
-ollama pull medgemma1.5:4b
-```
+![Per-model predictions and confidence, with all three models agreeing](notebooks/assets/analysis/01_model_comparison.png)
 
-To verify: `ollama list` should show `medgemma1.5:4b`.
+### Step 4 · It argues with itself
 
-### 5.3 Provide model weights and dataset
+This is the part most classifiers skip. Even with a confident, unanimous
+answer, five independent checks run — and any one of them can pull the scan
+back for a human to look at. Here two fired: the uncertainty check, and the
+re-check that crops away the background. So instead of a green result, you get
+this.
 
-Not included in this repo (see §3). Either train your own (§7) or place
-existing checkpoints at `app/models/v2/{convnext_tiny,efficientnet_b3,resnet50}.pth`
-and a MobileSAM/YOLO checkpoint at `app/models/mobile_sam.pt` / `app/cheng_yolo.pt`.
+![Caution banner reading "multiple flags or out of distribution", listing uncertainty and focus-crop inconsistency](notebooks/assets/analysis/02_caution_banner.png)
 
-### 5.4 (Optional) Rebuild the frontend
+### Step 5 · The tumor gets found and measured
 
-The `static/` folder already contains the built UI. Only rebuild if you modify React source:
+A detector draws the box, a segmentation model traces the outline, and the
+size is worked out from the pixels. The medical language model measures the
+same lesion independently from the raw image, and **both numbers stay on
+screen** — if they disagree, you see the disagreement instead of an averaged
+number hiding it.
 
-```powershell
-cd app\frontend
-npm install
-npm run build
-# then copy build output back into ../static/
-xcopy /E /I /Y build\* ..\static\
-```
+![Malignancy card with the tumor boxed, plus two independent size estimates](notebooks/assets/analysis/03_malignancy_assessment.png)
 
----
+### Step 6 · You can see where it was looking
 
-## 6. Running the app
+Four heat-maps, each answering a different question: is there a tumor at all,
+what type is it, where exactly, and how does the reasoning build up across the
+network's layers. All four landing on the same spot is a good sign; if they
+scattered, the model would be reading something other than the lesion.
 
-```powershell
-cd app
-py app.py
-```
+![Four-level heat-map explanation of the prediction](notebooks/assets/analysis/06_hierarchical_xai.png)
 
-You should see:
+### Step 7 · What this type of tumor actually means
 
-```
-[BOOT] Importing libraries...
-[BOOT] All imports OK
-Pre-loading models...
-[get_models] loading v2 weights from models/v2/
-[get_models] v2 ensemble loaded (3 models)
-Starting server on port 7860...
- * Running on http://127.0.0.1:7860
-```
+Everything marked **Reference** is fixed medical knowledge for the predicted
+type — written down in advance, so it reads the same every time and isn't
+something the language model invented on the spot. MedGemma's scan-specific
+reasoning sits alongside it rather than replacing it. You can also tick
+symptoms you've noticed, and the risk score updates as you go.
 
-Open **http://127.0.0.1:7860** in a browser.
+![Symptom checklist and clinical context cards for a meningioma](notebooks/assets/analysis/04_symptoms_clinical_context.png)
 
-### Using the UI
+### Step 8 · Questions to take to your doctor, and other ways to look
 
-1. Drag-and-drop or click to upload an MRI image (PNG / JPG)
-2. Click **Analyze MRI**
-3. Results panel shows:
-   - Tumor type + confidence, per-model agreement
-   - Uncertainty / OOD / Focus-Crop self-check
-   - Malignancy assessment with bbox + size (pipeline estimate + independent MedGemma estimate)
-   - Hierarchical Grad-CAM/LayerCAM visual explanations
-   - Adversarial robustness score
-   - MedGemma diagnostic report (Basic / Advanced toggle, EN / ES)
-   - Brain atlas region link
-4. **Floating chat (bottom-right)** — ask follow-up questions to MedGemma about the scan; switches between Patient and Doctor audience
+A prepared list of follow-up questions specific to the predicted tumor type,
+so a patient walks into the appointment with something to ask. Below it, the
+same slice re-rendered in six colour maps — HOT picks out enhancement, BONE
+sharpens edges, VIRIDIS pulls out subtle intensity changes that a single
+grayscale view flattens away.
 
-### Language
+![Suggested questions for the specialist, above the same scan in six colour maps](notebooks/assets/analysis/05_questions_anatomy.png)
 
-Toggle EN ↔ ES with the language switcher in the header. Reports, chat, UI labels, and clinical text all translate.
+### Step 9 · A written report
+
+MedGemma reads the scan and the pipeline's findings and writes them up, in
+either a simple or a detailed version.
+
+![MedGemma-generated diagnostic report in English](notebooks/assets/analysis/07_medgemma_report.png)
+
+The whole interface is bilingual — the same report generated in Spanish, not
+a translation layer bolted on afterwards:
+
+![The same kind of report generated in Spanish](notebooks/assets/analysis/07b_medgemma_report_es.png)
+
+### Step 10 · Where it sits in the brain
+
+The detected region links to an interactive 3D brain model with 11 labelled
+areas, so "left temporal lobe" becomes something you can actually look at and
+rotate.
+
+![Interactive 3D brain atlas with a region highlighted](notebooks/assets/atlas/01_3d_view.png)
+
+The report links straight into it, connecting the written finding to the
+anatomy rather than leaving them in separate tabs:
+
+![The report's clickable link through to the brain atlas](notebooks/assets/atlas/02_medgemma_link.png)
 
 ---
 
-## 7. Retraining the CNN ensemble
+## 4. How it works, step by step
 
-```powershell
-cd app
-py src\train_v2.py --model convnext_tiny  --epochs 40 --batch 32
-py src\train_v2.py --model efficientnet_b3 --epochs 40 --batch 32
-py src\train_v2.py --model resnet50       --epochs 40 --batch 32
-```
-
-Two-phase fine-tuning from ImageNet weights (frozen-backbone warm-up, then
-full unfreeze with cosine-annealed LR), class-weighted sampling, mixup, and
-label smoothing. Reads from `../dataset/train` and `../dataset/val`, and
-saves checkpoints under `models/v2/`.
-
-### Data augmentation
-
-Every one of the 9,867 training images is re-augmented independently, on
-the fly, every epoch — nothing augmented is ever written to disk. Over a
-40-epoch run that works out to **394,680 distinct stochastic views** of the
-training set (9,867 × 40), averaging roughly 2.5 transformations applied
-per view:
-
-| Transform | Probability | Views over 40 epochs | Why |
-|---|---:|---:|---|
-| Horizontal flip | 0.50 | ≈197,340 | Tumor type doesn't depend on left/right side — laterality comes from the bounding box, not the flip |
-| Rotation ±15° | 0.50 | ≈197,340 | Brain anatomy tolerates this range; larger angles break radiological convention |
-| Brightness/contrast ±20% | 0.50 | ≈197,340 | Robustness to exposure differences between acquisitions |
-| CLAHE | 0.50 | ≈197,340 | Same contrast-enhancement recipe used at inference time |
-| Gaussian noise (σ=0.01) | 0.30 | ≈118,404 | Simulates acquisition noise without erasing real detail |
-| Elastic transform (mild) | 0.20 | ≈78,936 | Simulates inter-scanner geometric variability |
-
-Deliberately **not** applied: vertical flip (superior/inferior anatomical
-direction matters — flipping it isn't a valid augmentation) and strong
-color perturbation (T1 MRI is essentially grayscale, so it wouldn't
-generalize to anything real). Source: `src/train_v2.py` →
-`build_train_transform()`.
-
-### Evaluating
-
-```powershell
-py src\eval_v2.py
-```
-
-Prints test-set accuracy, per-class precision/recall/F1, and writes a confusion matrix + `reports/v2_metrics.json` (the exact numbers the app's Metrics page reads).
-
----
-
-## 8. Dataset
-
-Combined from three publicly available brain MRI datasets — **BRISC-2025**,
-**Mendeley** (Epic/CSCR Hospital), and **Kaggle** (Nickparvar) — deduplicated
-against each other by MD5 hash (4 classes, T1-weighted axial slices):
-
-| | Total | Glioma | Meningioma | No Tumor | Pituitary |
-|---|---:|---:|---:|---:|---:|
-| Raw (3 datasets) | 25,264 | 6,974 | 6,164 | 5,439 | 6,687 |
-| After MD5 dedup | 14,095 | 4,011 | 2,821 | 4,121 | 3,142 |
-| Train · 70% | 9,867 | 2,808 | 1,975 | 2,885 | 2,199 |
-| Val · 15% | 2,114 | 602 | 423 | 618 | 471 |
-| Test · 15% | 2,114 | 601 | 423 | 618 | 472 |
-
-11,169 duplicates were discarded — ~44% of the raw pool, expected given the
-three source datasets share a large amount of underlying scans. The
-stratified 70/15/15 split is applied *after* dedup, and the test partition
-is never touched during training or any hyperparameter tuning — every
-number in this README's Results section comes from that one locked set.
-
-BRISC-2025 additionally contributes tumor segmentation annotations; a
-separate dataset from **Jun Cheng** (Figshare, 3,064 radiologist-annotated
-MRIs, patient-disjoint train/val split) is used specifically to train the
-YOLO11n tumor-localization detector.
-
----
-
-## 9. How it works, step by step
 
 Everything that happens between dropping a scan on the upload panel and
 reading the report, in nine plain-language steps. This is the real order
@@ -454,7 +362,220 @@ a separate local service for MedGemma.
 
 ---
 
-## 10. Results in detail
+## 5. Folder layout
+
+
+```
+Tumor-detection/
+├── README.md                      ← this file
+├── assets/
+│   ├── pipeline-{light,dark}.svg  ← the pipeline flowchart in §4
+│   └── binary-ablation-*.svg      ← the yes/no-model improvement chart in §1
+├── paper/
+│   └── brAIn_paper_en.pdf         ← full write-up (English translation of the original report)
+├── notebooks/
+│   └── demo.ipynb                 ← executed walkthrough of the full pipeline
+├── app/                           ← runnable application
+│   ├── app.py                     ← Flask backend (HTTP server on :7860)
+│   ├── requirements.txt           ← Python dependencies
+│   ├── cheng_yolo.pt              ← YOLO weights for tumor bbox (not tracked in git — see below)
+│   ├── llm/                       ← MedGemma client + Ollama prompts
+│   ├── preprocessing/              ← brain extraction, CLAHE, denoising
+│   ├── models/                    ← trained weights (not tracked in git — see below)
+│   │   └── v2/                    ← CNN ensemble (ConvNeXt + EffNet + ResNet)
+│   ├── static/                    ← built React UI + 3D brain atlas GLBs
+│   ├── frontend/                  ← React source (npm run build → static/)
+│   └── src/                       ← training + evaluation scripts
+│       ├── train_v2.py            ← train any of the 3 backbones
+│       └── eval_v2.py             ← test-set metrics + confusion matrices
+├── dataset/                       ← combined, deduplicated split (not tracked in git)
+│   ├── train/  val/  test/
+└── reports/                       ← evaluation metrics + confusion matrices (tracked)
+```
+
+**Not tracked in git**: `dataset/` (~280 MB), `app/models/` (~430 MB — individual
+checkpoints exceed GitHub's 100 MB file limit), `app/frontend/node_modules/`,
+`app/.venv/`. These are excluded via `.gitignore` to keep the repo a browsable
+portfolio piece rather than an asset dump — see the demo notebook or
+`reports/` for pre-computed results, or the setup steps below to run it
+yourself with your own weights/dataset.
+
+---
+
+## 6. Requirements
+
+
+| Component | Version | Why |
+|---|---|---|
+| **Python** | 3.11 (torch's CPU wheel doesn't yet support 3.12+) | Backend |
+| **Node.js** | 18+ | Frontend (only if rebuilding UI) |
+| **Ollama** | latest | Serves MedGemma 1.5 4B locally |
+| **GPU** | Optional — NVIDIA recommended for training | Inference runs fine on CPU (`torch==2.2.0+cpu`); MedGemma calls are slower without a GPU (a few minutes per report on CPU vs. seconds on GPU) |
+| **OS** | Windows 10/11, Linux | Tested on both Windows 11 (CPU-only) and Linux + RTX GPU |
+
+---
+
+## 7. First-time setup
+
+
+### 5.1 Install Python dependencies
+
+```powershell
+cd app
+py -3.11 -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+### 5.2 Pull MedGemma into Ollama
+
+```powershell
+# Install Ollama first: https://ollama.com/download
+ollama pull medgemma1.5:4b
+```
+
+To verify: `ollama list` should show `medgemma1.5:4b`.
+
+### 5.3 Provide model weights and dataset
+
+Not included in this repo (see §5). Either train your own (§9) or place
+existing checkpoints at `app/models/v2/{convnext_tiny,efficientnet_b3,resnet50}.pth`
+and a MobileSAM/YOLO checkpoint at `app/models/mobile_sam.pt` / `app/cheng_yolo.pt`.
+
+### 5.4 (Optional) Rebuild the frontend
+
+The `static/` folder already contains the built UI. Only rebuild if you modify React source:
+
+```powershell
+cd app\frontend
+npm install
+npm run build
+# then copy build output back into ../static/
+xcopy /E /I /Y build\* ..\static\
+```
+
+---
+
+## 8. Running the app
+
+
+```powershell
+cd app
+py app.py
+```
+
+You should see:
+
+```
+[BOOT] Importing libraries...
+[BOOT] All imports OK
+Pre-loading models...
+[get_models] loading v2 weights from models/v2/
+[get_models] v2 ensemble loaded (3 models)
+Starting server on port 7860...
+ * Running on http://127.0.0.1:7860
+```
+
+Open **http://127.0.0.1:7860** in a browser.
+
+### Using the UI
+
+1. Drag-and-drop or click to upload an MRI image (PNG / JPG)
+2. Click **Analyze MRI**
+3. Results panel shows:
+   - Tumor type + confidence, per-model agreement
+   - Uncertainty / OOD / Focus-Crop self-check
+   - Malignancy assessment with bbox + size (pipeline estimate + independent MedGemma estimate)
+   - Hierarchical Grad-CAM/LayerCAM visual explanations
+   - Adversarial robustness score
+   - MedGemma diagnostic report (Basic / Advanced toggle, EN / ES)
+   - Brain atlas region link
+4. **Floating chat (bottom-right)** — ask follow-up questions to MedGemma about the scan; switches between Patient and Doctor audience
+
+### Language
+
+Toggle EN ↔ ES with the language switcher in the header. Reports, chat, UI labels, and clinical text all translate.
+
+---
+
+## 9. Retraining the CNN ensemble
+
+
+```powershell
+cd app
+py src\train_v2.py --model convnext_tiny  --epochs 40 --batch 32
+py src\train_v2.py --model efficientnet_b3 --epochs 40 --batch 32
+py src\train_v2.py --model resnet50       --epochs 40 --batch 32
+```
+
+Two-phase fine-tuning from ImageNet weights (frozen-backbone warm-up, then
+full unfreeze with cosine-annealed LR), class-weighted sampling, mixup, and
+label smoothing. Reads from `../dataset/train` and `../dataset/val`, and
+saves checkpoints under `models/v2/`.
+
+### Data augmentation
+
+Every one of the 9,867 training images is re-augmented independently, on
+the fly, every epoch — nothing augmented is ever written to disk. Over a
+40-epoch run that works out to **394,680 distinct stochastic views** of the
+training set (9,867 × 40), averaging roughly 2.5 transformations applied
+per view:
+
+| Transform | Probability | Views over 40 epochs | Why |
+|---|---:|---:|---|
+| Horizontal flip | 0.50 | ≈197,340 | Tumor type doesn't depend on left/right side — laterality comes from the bounding box, not the flip |
+| Rotation ±15° | 0.50 | ≈197,340 | Brain anatomy tolerates this range; larger angles break radiological convention |
+| Brightness/contrast ±20% | 0.50 | ≈197,340 | Robustness to exposure differences between acquisitions |
+| CLAHE | 0.50 | ≈197,340 | Same contrast-enhancement recipe used at inference time |
+| Gaussian noise (σ=0.01) | 0.30 | ≈118,404 | Simulates acquisition noise without erasing real detail |
+| Elastic transform (mild) | 0.20 | ≈78,936 | Simulates inter-scanner geometric variability |
+
+Deliberately **not** applied: vertical flip (superior/inferior anatomical
+direction matters — flipping it isn't a valid augmentation) and strong
+color perturbation (T1 MRI is essentially grayscale, so it wouldn't
+generalize to anything real). Source: `src/train_v2.py` →
+`build_train_transform()`.
+
+### Evaluating
+
+```powershell
+py src\eval_v2.py
+```
+
+Prints test-set accuracy, per-class precision/recall/F1, and writes a confusion matrix + `reports/v2_metrics.json` (the exact numbers the app's Metrics page reads).
+
+---
+
+## 10. Dataset
+
+
+Combined from three publicly available brain MRI datasets — **BRISC-2025**,
+**Mendeley** (Epic/CSCR Hospital), and **Kaggle** (Nickparvar) — deduplicated
+against each other by MD5 hash (4 classes, T1-weighted axial slices):
+
+| | Total | Glioma | Meningioma | No Tumor | Pituitary |
+|---|---:|---:|---:|---:|---:|
+| Raw (3 datasets) | 25,264 | 6,974 | 6,164 | 5,439 | 6,687 |
+| After MD5 dedup | 14,095 | 4,011 | 2,821 | 4,121 | 3,142 |
+| Train · 70% | 9,867 | 2,808 | 1,975 | 2,885 | 2,199 |
+| Val · 15% | 2,114 | 602 | 423 | 618 | 471 |
+| Test · 15% | 2,114 | 601 | 423 | 618 | 472 |
+
+11,169 duplicates were discarded — ~44% of the raw pool, expected given the
+three source datasets share a large amount of underlying scans. The
+stratified 70/15/15 split is applied *after* dedup, and the test partition
+is never touched during training or any hyperparameter tuning — every
+number in this README's Results section comes from that one locked set.
+
+BRISC-2025 additionally contributes tumor segmentation annotations; a
+separate dataset from **Jun Cheng** (Figshare, 3,064 radiologist-annotated
+MRIs, patient-disjoint train/val split) is used specifically to train the
+YOLO11n tumor-localization detector.
+
+---
+
+## 11. Results in detail
+
 
 **Classification.** All three backbones exceed 98.7% accuracy and macro F1
 on the combined test set. EfficientNet-B3 is the strongest individual
@@ -497,7 +618,8 @@ and clinical narrative generation are all new, not just more label options.
 
 ---
 
-## 11. Limitations & future work
+## 12. Limitations & future work
+
 
 This is an experimental support tool, not a validated clinical system —
 these are the concrete gaps between where it is now and where it would need
@@ -539,7 +661,8 @@ to get to:
 
 ---
 
-## 12. Troubleshooting
+## 13. Troubleshooting
+
 
 | Symptom | Fix |
 |---|---|
@@ -553,7 +676,8 @@ to get to:
 
 ---
 
-## 13. References
+## 14. References
+
 
 - Dorfner, J. F., et al. (2025). *A review of deep learning for brain tumor analysis in MRI.* NPJ Precision Oncology, 9, Article 2.
 - Louis, D. N., et al. (2021). *The 2021 WHO Classification of Tumors of the Central Nervous System.* Neuro-Oncology, 23(8), 1231–1251.
@@ -568,4 +692,6 @@ to get to:
 
 ## License
 
+
 Research / educational use only. Not for clinical decisions. The system is an academic project (TFG) and has not been validated by any regulatory authority (FDA, EMA, etc.).
+

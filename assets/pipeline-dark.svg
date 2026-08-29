@@ -217,7 +217,7 @@
         <rect rx="3" class="nd nd-gate" x="240" y="1282" width="380" height="80"/>
         <text class="t-lbl" x="430" y="1309">Should a human check this?</text>
         <text class="t-sub" x="430" y="1331">yes if ANY flag above fired</text>
-        <text class="t-sub" x="430" y="1351">→ turns the verdict amber</text>
+        <text class="t-sub" x="430" y="1351">→ shows a caution banner</text>
 
         <line class="ed" x1="430" y1="1362" x2="430" y2="1390" marker-end="url(#ah)"/>
 
